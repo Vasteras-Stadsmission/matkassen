@@ -24,17 +24,6 @@ const eslintConfig = [
                     message: "Please import from `@/app/i18n/navigation` instead.",
                 },
             ],
-            // eslint-config-next 16 brings the React Compiler rules of
-            // eslint-plugin-react-hooks 7. These six flag existing code; they
-            // warn until that code is fixed, so new violations stay visible
-            // without blocking the Next.js 16 upgrade. The other compiler
-            // rules pass today and stay errors.
-            "react-hooks/set-state-in-effect": "warn",
-            "react-hooks/static-components": "warn",
-            "react-hooks/preserve-manual-memoization": "warn",
-            "react-hooks/refs": "warn",
-            "react-hooks/purity": "warn",
-            "react-hooks/immutability": "warn",
         },
     },
     {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
     Container,
     Title,
@@ -46,47 +46,45 @@ export function PrivacyPolicyEditor() {
     const [showPreview, setShowPreview] = useState(false);
     const [selectedNewLang, setSelectedNewLang] = useState<string | null>(null);
 
-    const loadPolicies = useCallback(async () => {
-        setLoading(true);
-        try {
-            const result = await getAllPrivacyPolicies();
-            if (result.success && result.data) {
-                const results: Record<string, PrivacyPolicy | null> = {};
-                const contentMap: Record<string, string> = {};
-                const langs: string[] = [];
-
-                for (const policy of result.data) {
-                    results[policy.language] = policy;
-                    contentMap[policy.language] = policy.content || "";
-                    langs.push(policy.language);
-                }
-
-                setPolicies(results);
-                setContents(contentMap);
-
-                // Set active languages from existing policies, default to sv if none
-                if (langs.length > 0) {
-                    setActiveLanguages(langs);
-                    setActiveTab(langs[0]);
-                } else {
-                    setActiveLanguages(["sv"]);
-                    setActiveTab("sv");
-                }
-            }
-        } catch {
-            notifications.show({
-                title: t("notifications.error"),
-                message: t("notifications.loadError"),
-                color: "red",
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, [t]);
-
     useEffect(() => {
-        loadPolicies();
-    }, [loadPolicies]);
+        async function fetchPolicies() {
+            try {
+                const result = await getAllPrivacyPolicies();
+                if (result.success && result.data) {
+                    const results: Record<string, PrivacyPolicy | null> = {};
+                    const contentMap: Record<string, string> = {};
+                    const langs: string[] = [];
+
+                    for (const policy of result.data) {
+                        results[policy.language] = policy;
+                        contentMap[policy.language] = policy.content || "";
+                        langs.push(policy.language);
+                    }
+
+                    setPolicies(results);
+                    setContents(contentMap);
+
+                    // Set active languages from existing policies, default to sv if none
+                    if (langs.length > 0) {
+                        setActiveLanguages(langs);
+                        setActiveTab(langs[0]);
+                    } else {
+                        setActiveLanguages(["sv"]);
+                        setActiveTab("sv");
+                    }
+                }
+            } catch {
+                notifications.show({
+                    title: t("notifications.error"),
+                    message: t("notifications.loadError"),
+                    color: "red",
+                });
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchPolicies();
+    }, [t]);
 
     const addLanguage = (langCode: string) => {
         if (!activeLanguages.includes(langCode)) {

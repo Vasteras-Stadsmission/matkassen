@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter, usePathname } from "@/app/i18n/navigation";
 import {
@@ -74,33 +74,23 @@ export default function HouseholdDetailsPage({
 
     const [householdData, setHouseholdData] = useState(initialData);
     const [loading, setLoading] = useState(false);
-    const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
-    const [parcelDialogOpened, parcelDialogHandlers] = useDisclosure(false);
-    const [cancelledOpened, cancelledHandlers] = useDisclosure(false);
+    // The URL's parcel parameter opens the parcel dialog
+    const selectedParcelId = searchParams.get("parcel");
+    const parcelDialogOpened = selectedParcelId !== null;
+    const [cancelledOpened, setCancelledOpened] = useState(false);
     const [removeDialogOpened, removeDialogHandlers] = useDisclosure(false);
 
     const householdName = householdData
         ? `${householdData.household.first_name} ${householdData.household.last_name}`
         : "";
 
-    // Watch URL for parcel parameter
-    useEffect(() => {
-        const parcelId = searchParams.get("parcel");
-        if (parcelId) {
-            setSelectedParcelId(parcelId);
-            parcelDialogHandlers.open();
-        } else {
-            parcelDialogHandlers.close();
-            setSelectedParcelId(null);
-        }
-    }, [searchParams, parcelDialogHandlers]);
-
-    // Auto-expand cancelled section if there are cancelled parcels
-    useEffect(() => {
-        if (householdData?.deletedParcels && householdData.deletedParcels.length > 0) {
-            cancelledHandlers.open();
-        }
-    }, [householdData?.deletedParcels, cancelledHandlers]);
+    // Auto-expand cancelled section whenever loaded data has cancelled parcels
+    const loadedDeletedParcels = householdData?.deletedParcels;
+    const [seenDeletedParcels, setSeenDeletedParcels] = useState<typeof loadedDeletedParcels>();
+    if (loadedDeletedParcels !== seenDeletedParcels) {
+        setSeenDeletedParcels(loadedDeletedParcels);
+        if (loadedDeletedParcels && loadedDeletedParcels.length > 0) setCancelledOpened(true);
+    }
 
     // Refresh household data
     const refreshHouseholdData = useCallback(async () => {
@@ -448,7 +438,7 @@ export default function HouseholdDetailsPage({
                                 justify="space-between"
                                 mb={cancelledOpened ? "md" : 0}
                                 style={{ cursor: "pointer" }}
-                                onClick={cancelledHandlers.toggle}
+                                onClick={() => setCancelledOpened(opened => !opened)}
                             >
                                 <Group gap="xs">
                                     <Title order={3} size="h4">

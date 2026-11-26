@@ -139,6 +139,9 @@ export default function IssuesPageClient() {
     const locale = useLocale();
 
     const [issues, setIssues] = useState<IssuesData | null>(null);
+    // When issues were fetched: "has the pickup passed?" compares against this
+    // rather than reading the clock during render.
+    const [fetchedAt, setFetchedAt] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -255,14 +258,13 @@ export default function IssuesPageClient() {
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    const fetchData = useCallback(async () => {
+    // Loading starts true and error null, so the first fetch needs no reset;
+    // refetchData resets them for later fetches.
+    const loadIssues = useCallback(async () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
         abortControllerRef.current = new AbortController();
-
-        setLoading(true);
-        setError(null);
 
         try {
             const response = await adminFetch("/api/admin/issues", {
@@ -275,6 +277,7 @@ export default function IssuesPageClient() {
 
             const data = await response.json();
             setIssues(data);
+            setFetchedAt(Date.now());
         } catch (err) {
             if (err instanceof Error && err.name === "AbortError") {
                 return;
@@ -286,13 +289,19 @@ export default function IssuesPageClient() {
     }, [t]);
 
     useEffect(() => {
-        fetchData();
+        loadIssues();
         return () => {
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
         };
-    }, [fetchData]);
+    }, [loadIssues]);
+
+    const refetchData = () => {
+        setLoading(true);
+        setError(null);
+        void loadIssues();
+    };
 
     const formatPickupTime = (earliest: string, latest: string) => {
         const earliestDate = new Date(earliest);
@@ -1015,7 +1024,7 @@ export default function IssuesPageClient() {
                                 const pickupPassed =
                                     isParcelRetry &&
                                     (!sms.pickupEarliest ||
-                                        new Date(sms.pickupEarliest).getTime() < Date.now());
+                                        new Date(sms.pickupEarliest).getTime() < fetchedAt);
 
                                 return (
                                     <Paper
@@ -1359,7 +1368,7 @@ export default function IssuesPageClient() {
                                                         color: "green",
                                                         icon: <IconCheck size="1rem" />,
                                                     });
-                                                    void fetchData();
+                                                    refetchData();
                                                 }}
                                             />
                                         )}

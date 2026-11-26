@@ -89,9 +89,11 @@ export function HouseholdInfoCard({
         });
     };
 
-    useEffect(() => {
+    const [syncedResponsibleUserId, setSyncedResponsibleUserId] = useState(responsibleStaffUserId);
+    if (responsibleStaffUserId !== syncedResponsibleUserId) {
+        setSyncedResponsibleUserId(responsibleStaffUserId);
         setSelectedResponsibleUserId(responsibleStaffUserId || "");
-    }, [responsibleStaffUserId]);
+    }
 
     useEffect(() => {
         getResponsibleStaffOptionsAction(responsibleStaffUserId || null)

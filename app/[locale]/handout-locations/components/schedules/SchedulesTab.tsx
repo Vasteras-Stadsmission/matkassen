@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Stack, Paper, Text, LoadingOverlay, Select, Button, Group } from "@mantine/core";
 import { useTranslations } from "next-intl";
 import { notifications } from "@mantine/notifications";
@@ -39,20 +39,22 @@ export function SchedulesTab({ location, onUpdated, onLocationUpdated }: Schedul
 
     // Sync with server state when location changes, but only if schedules actually changed
     // This prevents overwriting optimistic updates when the location object is re-created
-    useEffect(() => {
-        setSchedules(prevSchedules => {
-            // Only update if the schedules array actually changed
-            const newSchedules = location.schedules || [];
-            if (!objectsEqual(prevSchedules, newSchedules)) {
-                return newSchedules;
-            }
-            return prevSchedules;
-        });
-    }, [location.schedules]);
+    const [syncedSchedules, setSyncedSchedules] = useState(location.schedules);
+    if (location.schedules !== syncedSchedules) {
+        setSyncedSchedules(location.schedules);
+        const newSchedules = location.schedules || [];
+        if (!objectsEqual(schedules, newSchedules)) {
+            setSchedules(newSchedules);
+        }
+    }
 
-    useEffect(() => {
+    const [syncedSlotDuration, setSyncedSlotDuration] = useState(
+        location.default_slot_duration_minutes,
+    );
+    if (location.default_slot_duration_minutes !== syncedSlotDuration) {
+        setSyncedSlotDuration(location.default_slot_duration_minutes);
         setSlotDuration(String(location.default_slot_duration_minutes));
-    }, [location.default_slot_duration_minutes]);
+    }
 
     const saveSlotDuration = async () => {
         setSavingSlotDuration(true);

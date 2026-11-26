@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Alert, Text, Stack, CloseButton, Group, Anchor } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
@@ -10,6 +10,22 @@ import { Link } from "@/app/i18n/navigation";
 // welcome banner on this device. Using a simple string flag (not a timestamp)
 // keeps it trivial to clear — just remove the key from DevTools.
 const DISMISSED_STORAGE_KEY = "matkassen.welcomeBanner.dismissed";
+
+// The banner doesn't follow dismissals made in other tabs
+const subscribeToNothing = () => () => {};
+
+function readDismissed(): boolean {
+    try {
+        return window.localStorage.getItem(DISMISSED_STORAGE_KEY) === "1";
+    } catch {
+        // localStorage can throw in private mode or when storage is full.
+        // Fail open (show the banner) — worst case is a minor repeated nag.
+        return false;
+    }
+}
+
+// The server can't read localStorage, so it renders the banner as dismissed
+const readDismissedOnServer = () => true;
 
 interface WelcomeBannerProps {
     /** User role from the server session. Banner only renders for handout_staff. */
@@ -24,31 +40,21 @@ interface WelcomeBannerProps {
  * Admin users never see this banner — it's specifically for orienting staff
  * who just completed the sign-in onboarding flow.
  *
- * SSR-safe: renders nothing until the client effect has read localStorage,
+ * SSR-safe: renders nothing until the client has read localStorage,
  * which prevents a flash of the banner on navigations after a prior dismiss.
  */
 export function WelcomeBanner({ userRole }: WelcomeBannerProps) {
     const t = useTranslations("schedule.welcomeBanner");
-    // undefined = SSR / initial, true = show, false = hidden
-    const [visible, setVisible] = useState<boolean | undefined>(undefined);
-
-    useEffect(() => {
-        if (userRole !== "handout_staff") {
-            setVisible(false);
-            return;
-        }
-        try {
-            const dismissed = window.localStorage.getItem(DISMISSED_STORAGE_KEY);
-            setVisible(dismissed !== "1");
-        } catch {
-            // localStorage can throw in private mode or when storage is full.
-            // Fail open (show the banner) — worst case is a minor repeated nag.
-            setVisible(true);
-        }
-    }, [userRole]);
+    const storedDismissed = useSyncExternalStore(
+        subscribeToNothing,
+        readDismissed,
+        readDismissedOnServer,
+    );
+    const [dismissed, setDismissed] = useState(false);
+    const visible = userRole === "handout_staff" && !storedDismissed && !dismissed;
 
     const handleDismiss = () => {
-        setVisible(false);
+        setDismissed(true);
         try {
             window.localStorage.setItem(DISMISSED_STORAGE_KEY, "1");
         } catch {

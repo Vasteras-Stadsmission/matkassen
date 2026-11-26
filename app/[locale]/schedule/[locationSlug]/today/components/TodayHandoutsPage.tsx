@@ -106,8 +106,9 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     const [canPull, setCanPull] = useState(false);
 
     // Modal state
-    const [dialogOpened, { open: openDialog, close: closeDialog }] = useDisclosure(false);
-    const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
+    // The URL's parcel parameter (set by QR code scans and row clicks) opens the dialog
+    const selectedParcelId = searchParams.get("parcel");
+    const dialogOpened = selectedParcelId !== null;
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("");
@@ -116,102 +117,97 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
 
     const today = new Date();
 
-    // Handle deep link to specific parcel (like QR code scans)
-    useEffect(() => {
-        const parcelId = searchParams.get("parcel");
-        if (parcelId) {
-            if (selectedParcelId !== parcelId) {
-                setSelectedParcelId(parcelId);
-                openDialog();
-            }
-        } else if (selectedParcelId) {
-            closeDialog();
-            setSelectedParcelId(null);
-        }
-    }, [searchParams, selectedParcelId, openDialog, closeDialog]);
+    // Bumped by loadData to refetch
+    const [reloadCount, setReloadCount] = useState(0);
 
-    // Load data
-    const loadData = useCallback(async () => {
+    // Fetch data. loading starts true and locationError null, so the first
+    // fetch needs no reset; loadData resets them for later fetches.
+    useEffect(() => {
+        async function fetchData() {
+            try {
+                // Load locations first to validate the slug
+                const locationsData = await getPickupLocations();
+
+                // Find the current location by slug
+                const location = findLocationBySlug(locationsData, locationSlug);
+
+                if (!location) {
+                    setLocationError(`Location not found: ${locationSlug}`);
+                    setLoading(false);
+                    return;
+                }
+
+                setCurrentLocation(location);
+
+                // Load today's parcels (with phone numbers for search) and summary stats in parallel
+                const capacityDate = new Date();
+                const capacityDateKey = formatDateToYMD(capacityDate);
+                const [parcelsData, stats, limitsResult] = await Promise.all([
+                    getTodaysParcelsWithPhone(location.id),
+                    getTodaysSummaryStats(location.id),
+                    getEffectiveDailyLimitsForDateRange(location.id, capacityDate, capacityDate)
+                        .then(limits => ({ success: true as const, limits }))
+                        .catch(() => ({ success: false as const })),
+                ]);
+
+                setSummaryStats(stats);
+                setDailyLimit(
+                    limitsResult.success
+                        ? (limitsResult.limits[capacityDateKey] ?? null)
+                        : undefined,
+                );
+
+                // Check if we need to fetch a specific parcel to get its location (but don't add it to the list)
+                const parcelId = searchParams.get("parcel");
+                if (parcelId && !parcelsData.find(p => p.id === parcelId)) {
+                    await getParcelById(parcelId);
+                }
+
+                // Enhance parcels (already scoped to this location by the server action)
+                const enhancedParcels = parcelsData.map((parcel): TodayParcel => {
+                    // Determine status: pickedUp > noShow > upcoming
+                    let status: ParcelDisplayStatus;
+                    if (parcel.isPickedUp) {
+                        status = "pickedUp";
+                    } else if (parcel.noShowAt) {
+                        status = "noShow";
+                    } else {
+                        status = "upcoming";
+                    }
+                    return {
+                        ...parcel,
+                        locationName: location.name,
+                        timeSlot:
+                            format(parcel.pickupEarliestTime, "HH:mm") +
+                            "-" +
+                            format(parcel.pickupLatestTime, "HH:mm"),
+                        status,
+                    };
+                });
+
+                setParcels(sortTodaysParcels(enhancedParcels));
+            } catch {
+                // Error boundary will handle display
+                setLocationError("Failed to load data");
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [locationSlug, reloadCount]); // searchParams intentionally excluded - only used for deep link, not a refetch trigger
+
+    const loadData = useCallback(() => {
         setLoading(true);
         setLocationError(null);
-
-        try {
-            // Load locations first to validate the slug
-            const locationsData = await getPickupLocations();
-
-            // Find the current location by slug
-            const location = findLocationBySlug(locationsData, locationSlug);
-
-            if (!location) {
-                setLocationError(`Location not found: ${locationSlug}`);
-                setLoading(false);
-                return;
-            }
-
-            setCurrentLocation(location);
-
-            // Load today's parcels (with phone numbers for search) and summary stats in parallel
-            const capacityDate = new Date();
-            const capacityDateKey = formatDateToYMD(capacityDate);
-            const [parcelsData, stats, limitsResult] = await Promise.all([
-                getTodaysParcelsWithPhone(location.id),
-                getTodaysSummaryStats(location.id),
-                getEffectiveDailyLimitsForDateRange(location.id, capacityDate, capacityDate)
-                    .then(limits => ({ success: true as const, limits }))
-                    .catch(() => ({ success: false as const })),
-            ]);
-
-            setSummaryStats(stats);
-            setDailyLimit(
-                limitsResult.success ? (limitsResult.limits[capacityDateKey] ?? null) : undefined,
-            );
-
-            // Check if we need to fetch a specific parcel to get its location (but don't add it to the list)
-            const parcelId = searchParams.get("parcel");
-            if (parcelId && !parcelsData.find(p => p.id === parcelId)) {
-                await getParcelById(parcelId);
-            }
-
-            // Enhance parcels (already scoped to this location by the server action)
-            const enhancedParcels = parcelsData.map((parcel): TodayParcel => {
-                // Determine status: pickedUp > noShow > upcoming
-                let status: ParcelDisplayStatus;
-                if (parcel.isPickedUp) {
-                    status = "pickedUp";
-                } else if (parcel.noShowAt) {
-                    status = "noShow";
-                } else {
-                    status = "upcoming";
-                }
-                return {
-                    ...parcel,
-                    locationName: location.name,
-                    timeSlot:
-                        format(parcel.pickupEarliestTime, "HH:mm") +
-                        "-" +
-                        format(parcel.pickupLatestTime, "HH:mm"),
-                    status,
-                };
-            });
-
-            setParcels(sortTodaysParcels(enhancedParcels));
-        } catch {
-            // Error boundary will handle display
-            setLocationError("Failed to load data");
-        } finally {
-            setLoading(false);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [locationSlug]); // searchParams intentionally excluded - only used for deep link, not a refetch trigger
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+        setReloadCount(count => count + 1);
+    }, []);
 
     // Listen for schedule grid refresh events (e.g., when parcels are updated elsewhere)
     useEffect(() => {
-        const handleRefreshScheduleGrid = async () => {
-            await loadData(); // Force refresh
+        const handleRefreshScheduleGrid = () => {
+            loadData(); // Force refresh
         };
 
         window.addEventListener("refreshScheduleGrid", handleRefreshScheduleGrid);
@@ -224,9 +220,9 @@ export function TodayHandoutsPage({ locationSlug }: TodayHandoutsPageProps) {
     }, [router]);
 
     // Handle parcel updates from ParcelAdminDialog
-    const handleParcelUpdated = useCallback(async () => {
+    const handleParcelUpdated = useCallback(() => {
         // For today's handouts, we show pickup status, so refetch on all actions
-        await loadData();
+        loadData();
     }, [loadData]);
 
     // Handle dialog close - remove parcel parameter from URL

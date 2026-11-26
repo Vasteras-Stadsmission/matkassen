@@ -131,11 +131,6 @@ export default function WeeklyScheduleGrid({
     // Reference to track the last fetched location ID to prevent duplicate requests
     const lastFetchedLocationIdRef = useRef<string | null>(null);
 
-    // Group parcels by date and time slot
-    const [parcelsBySlot, setParcelsBySlot] = useState<
-        Record<string, Record<string, FoodParcel[]>>
-    >({});
-
     // State for active drag overlay
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const activeDragParcel = activeDragId
@@ -158,9 +153,6 @@ export default function WeeklyScheduleGrid({
     const [selectedParcelForReschedule, setSelectedParcelForReschedule] =
         useState<FoodParcel | null>(null);
 
-    // Count parcels by date for capacity limits
-    const [parcelCountByDate, setParcelCountByDate] = useState<Record<string, number>>({});
-
     // State for location schedule information
     const [locationSchedules, setLocationSchedules] = useState<LocationScheduleInfo | null>(null);
     // State to track unavailable time slots
@@ -180,10 +172,11 @@ export default function WeeklyScheduleGrid({
         useDisclosure(false);
 
     // Auto-select all outside-hours parcels, and prune stale selections
-    useEffect(() => {
-        const currentIds = new Set(outsideHoursParcels.map(p => p.id));
-        setSelectedOutsideHoursIds(currentIds);
-    }, [outsideHoursParcels]);
+    const [selectedFor, setSelectedFor] = useState(outsideHoursParcels);
+    if (outsideHoursParcels !== selectedFor) {
+        setSelectedFor(outsideHoursParcels);
+        setSelectedOutsideHoursIds(new Set(outsideHoursParcels.map(p => p.id)));
+    }
 
     // Detect if any valid future time slots exist for rescheduling
     const hasValidSlots = useMemo(() => {
@@ -508,8 +501,8 @@ export default function WeeklyScheduleGrid({
         slotDuration,
     ]);
 
-    // Organize parcels by date and time slot
-    useEffect(() => {
+    // Group parcels by date and time slot, and count them by date for capacity limits
+    const { parcelsBySlot, parcelCountByDate } = useMemo(() => {
         const newParcelsBySlot: Record<string, Record<string, FoodParcel[]>> = {};
         const newParcelCountByDate: Record<string, number> = {};
 
@@ -556,8 +549,7 @@ export default function WeeklyScheduleGrid({
             }
         });
 
-        setParcelsBySlot(newParcelsBySlot);
-        setParcelCountByDate(newParcelCountByDate);
+        return { parcelsBySlot: newParcelsBySlot, parcelCountByDate: newParcelCountByDate };
     }, [foodParcels, weekDates, filteredTimeSlots, slotDuration]);
 
     // Setup DnD sensors

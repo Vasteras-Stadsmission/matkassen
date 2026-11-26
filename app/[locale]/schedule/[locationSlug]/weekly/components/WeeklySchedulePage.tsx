@@ -224,14 +224,22 @@ export function WeeklySchedulePage({ locationSlug, initialDateKey }: WeeklySched
 
     // Fetch outside-hours parcels when location changes (independent of week navigation)
     useEffect(() => {
-        if (currentLocation) {
-            loadOutsideHoursParcels(currentLocation.id);
-        }
-    }, [currentLocation, loadOutsideHoursParcels]);
+        if (!currentLocation) return;
+        let cancelled = false;
+        getOutsideHoursParcelsAction(currentLocation.id)
+            .then(parcels => {
+                if (!cancelled) setOutsideHoursParcels(parcels);
+            })
+            .catch(() => {
+                if (!cancelled) setOutsideHoursParcels([]);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [currentLocation]);
 
-    useEffect(() => {
-        if (weekDates.length === 0) return;
-
+    // Keep the selected date inside the shown week, adjusted during render
+    if (weekDates.length > 0) {
         const nextSelectedDate =
             weekDates.find(date => formatDateToYMD(date) === formatDateToYMD(selectedDate)) ??
             weekDates.find(date => formatDateToYMD(date) === formatDateToYMD(currentDate)) ??
@@ -241,7 +249,7 @@ export function WeeklySchedulePage({ locationSlug, initialDateKey }: WeeklySched
             setSelectedDateIsAvailable(null);
             setSelectedDate(nextSelectedDate);
         }
-    }, [weekDates, currentDate, selectedDate]);
+    }
 
     useEffect(() => {
         let cancelled = false;

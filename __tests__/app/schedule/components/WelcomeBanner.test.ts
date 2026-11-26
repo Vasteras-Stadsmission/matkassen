@@ -16,7 +16,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 const DISMISSED_STORAGE_KEY = "matkassen.welcomeBanner.dismissed";
 
 /**
- * Mirrors the useEffect logic in WelcomeBanner.tsx. Given the user's role
+ * Mirrors the visibility logic in WelcomeBanner.tsx. Given the user's role
  * and the current localStorage state, decides whether the banner should be
  * visible on a client-side render.
  */

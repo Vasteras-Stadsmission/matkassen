@@ -96,40 +96,48 @@ export function HouseholdOptionsManager() {
     const [deletingOption, setDeletingOption] = useState<OptionWithUsage | null>(null);
     const [formData, setFormData] = useState<OptionFormData>({ name: "", color: "" });
 
-    const loadAllOptions = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [dietaryResult, petResult, needsResult] = await Promise.all([
-                listDietaryRestrictions(),
-                listPetSpecies(),
-                listAdditionalNeeds(),
-            ]);
+    // Bumped by loadAllOptions to refetch
+    const [reloadCount, setReloadCount] = useState(0);
 
-            if (dietaryResult.success) setDietaryOptions(dietaryResult.data);
-            if (petResult.success) setPetOptions(petResult.data);
-            if (needsResult.success) setNeedsOptions(needsResult.data);
+    // loading starts true, so the first fetch needs no reset; loadAllOptions sets it
+    // for later fetches
+    useEffect(() => {
+        async function fetchAllOptions() {
+            try {
+                const [dietaryResult, petResult, needsResult] = await Promise.all([
+                    listDietaryRestrictions(),
+                    listPetSpecies(),
+                    listAdditionalNeeds(),
+                ]);
 
-            if (!dietaryResult.success || !petResult.success || !needsResult.success) {
+                if (dietaryResult.success) setDietaryOptions(dietaryResult.data);
+                if (petResult.success) setPetOptions(petResult.data);
+                if (needsResult.success) setNeedsOptions(needsResult.data);
+
+                if (!dietaryResult.success || !petResult.success || !needsResult.success) {
+                    notifications.show({
+                        title: t("notifications.error"),
+                        message: t("notifications.loadError"),
+                        color: "red",
+                    });
+                }
+            } catch {
                 notifications.show({
                     title: t("notifications.error"),
                     message: t("notifications.loadError"),
                     color: "red",
                 });
+            } finally {
+                setLoading(false);
             }
-        } catch {
-            notifications.show({
-                title: t("notifications.error"),
-                message: t("notifications.loadError"),
-                color: "red",
-            });
-        } finally {
-            setLoading(false);
         }
-    }, [t]);
+        fetchAllOptions();
+    }, [t, reloadCount]);
 
-    useEffect(() => {
-        loadAllOptions();
-    }, [loadAllOptions]);
+    const loadAllOptions = useCallback(() => {
+        setLoading(true);
+        setReloadCount(count => count + 1);
+    }, []);
 
     const getCurrentOptions = (): OptionWithUsage[] => {
         switch (activeTab) {
@@ -228,7 +236,7 @@ export function HouseholdOptionsManager() {
                         : t("notifications.deactivated"),
                     color: "green",
                 });
-                await loadAllOptions();
+                loadAllOptions();
             } else {
                 notifications.show({
                     title: t("notifications.error"),
@@ -296,7 +304,7 @@ export function HouseholdOptionsManager() {
                     color: "green",
                 });
                 closeModal();
-                await loadAllOptions();
+                loadAllOptions();
             } else {
                 notifications.show({
                     title: t("notifications.error"),
@@ -341,7 +349,7 @@ export function HouseholdOptionsManager() {
                 });
                 closeDeleteModal();
                 setDeletingOption(null);
-                await loadAllOptions();
+                loadAllOptions();
             } else {
                 notifications.show({
                     title: t("notifications.error"),

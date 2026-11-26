@@ -74,7 +74,9 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
     const [loadedCapacityByDate, setLoadedCapacityByDate] = useState<
         Record<string, { booked: number; limit: number | null }>
     >({});
-    const [loadingMonth, setLoadingMonth] = useState(false);
+    // True until the visible month's data arrives; whatever changes the month
+    // or location sets it, since the fetch effect itself can't
+    const [loadingMonth, setLoadingMonth] = useState(true);
     const [selectedDates, setSelectedDates] = useState<string[]>([]);
     const [dailyLimit, setDailyLimit] = useState<number | string>("");
     const [defaultDailyLimit, setDefaultDailyLimit] = useState<number | string>(
@@ -88,43 +90,57 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
 
     const monthDateKeys = useMemo(() => dateKeysForMonth(visibleMonth.slice(0, 7)), [visibleMonth]);
 
-    const loadMonth = useCallback(async () => {
-        const requestId = ++monthRequestId.current;
-        setLoadingMonth(true);
-        const result = await getDailyLimitMonthData(location.id, monthDateKeys);
-        if (requestId !== monthRequestId.current) return;
-        if (result.success) {
-            setMonthData(result.data);
-            setLoadedCapacityByDate(current => {
-                const next = { ...current };
-                for (const [dateKey, limit] of Object.entries(result.data.effectiveDailyLimits)) {
-                    next[dateKey] = {
-                        booked: result.data.bookedCounts[dateKey] ?? 0,
-                        limit,
-                    };
-                }
-                return next;
-            });
-        } else {
-            setMonthData(null);
-            notifications.show({
-                title: t("loadErrorTitle"),
-                message: t("loadErrorMessage"),
-                color: "red",
-            });
-        }
-        setLoadingMonth(false);
-    }, [location.id, monthDateKeys, t]);
-
-    useEffect(() => {
-        void loadMonth();
-    }, [loadMonth]);
-
-    useEffect(() => {
+    // A location switch clears the selection and loaded capacity, and an
+    // updated default limit replaces the edited one
+    const [syncedLocation, setSyncedLocation] = useState({
+        id: location.id,
+        defaultLimit: location.parcels_max_per_day,
+    });
+    if (
+        syncedLocation.id !== location.id ||
+        syncedLocation.defaultLimit !== location.parcels_max_per_day
+    ) {
+        setSyncedLocation({ id: location.id, defaultLimit: location.parcels_max_per_day });
         setDefaultDailyLimit(location.parcels_max_per_day ?? "");
         setSelectedDates([]);
         setLoadedCapacityByDate({});
-    }, [location.id, location.parcels_max_per_day]);
+        if (syncedLocation.id !== location.id) setLoadingMonth(true);
+    }
+
+    // Bumped after a save to refetch the visible month
+    const [reloadCount, setReloadCount] = useState(0);
+
+    useEffect(() => {
+        const requestId = ++monthRequestId.current;
+        async function fetchMonth() {
+            const result = await getDailyLimitMonthData(location.id, monthDateKeys);
+            if (requestId !== monthRequestId.current) return;
+            if (result.success) {
+                setMonthData(result.data);
+                setLoadedCapacityByDate(current => {
+                    const next = { ...current };
+                    for (const [dateKey, limit] of Object.entries(
+                        result.data.effectiveDailyLimits,
+                    )) {
+                        next[dateKey] = {
+                            booked: result.data.bookedCounts[dateKey] ?? 0,
+                            limit,
+                        };
+                    }
+                    return next;
+                });
+            } else {
+                setMonthData(null);
+                notifications.show({
+                    title: t("loadErrorTitle"),
+                    message: t("loadErrorMessage"),
+                    color: "red",
+                });
+            }
+            setLoadingMonth(false);
+        }
+        void fetchMonth();
+    }, [location.id, monthDateKeys, t, reloadCount]);
 
     const groupedSelection = useMemo(() => {
         const formatter = new Intl.DateTimeFormat(locale === "sv" ? "sv-SE" : "en-GB", {
@@ -146,17 +162,18 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
     }, [locale, selectedDates]);
 
     const finishMutation = useCallback(
-        async (messageKey: "defaultsSaved" | "datesSaved" | "datesReset") => {
+        (messageKey: "defaultsSaved" | "datesSaved" | "datesReset") => {
             setPendingConfirmation(null);
             setSelectedDates([]);
-            await loadMonth();
+            setLoadingMonth(true);
+            setReloadCount(count => count + 1);
             notifications.show({
                 title: t("successTitle"),
                 message: t(messageKey),
                 color: "green",
             });
         },
-        [loadMonth, t],
+        [t],
     );
 
     const saveDefaults = useCallback(
@@ -185,7 +202,7 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                 return;
             }
             onLocationUpdated?.(location.id, values);
-            await finishMutation("defaultsSaved");
+            finishMutation("defaultsSaved");
         },
         [defaultDailyLimit, finishMutation, location.id, onLocationUpdated, t],
     );
@@ -222,7 +239,7 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                 });
                 return;
             }
-            await finishMutation("datesSaved");
+            finishMutation("datesSaved");
         },
         [dailyLimit, finishMutation, location.id, selectedDates, t],
     );
@@ -249,7 +266,7 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                 setPendingConfirmation({ kind: "reset", conflicts: result.data.conflicts });
                 return;
             }
-            await finishMutation("datesReset");
+            finishMutation("datesReset");
         },
         [finishMutation, location.id, selectedDates, t],
     );
@@ -344,7 +361,10 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                                 value={selectedDates}
                                 onChange={setSelectedDates}
                                 date={visibleMonth}
-                                onDateChange={setVisibleMonth}
+                                onDateChange={month => {
+                                    setVisibleMonth(month);
+                                    setLoadingMonth(true);
+                                }}
                                 numberOfColumns={1}
                                 size="md"
                                 withWeekNumbers

@@ -39,36 +39,44 @@ export function UserAgreementEditor() {
     const [showPreview, setShowPreview] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
 
-    const loadAgreements = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [currentResult, allResult] = await Promise.all([
-                getCurrentUserAgreement(),
-                getAllUserAgreements(),
-            ]);
+    // Bumped by loadAgreements to refetch
+    const [reloadCount, setReloadCount] = useState(0);
 
-            if (currentResult.success) {
-                setCurrentAgreement(currentResult.data);
-                setContent(currentResult.data?.content || "");
-            }
-
-            if (allResult.success) {
-                setAllAgreements(allResult.data || []);
-            }
-        } catch {
-            notifications.show({
-                title: t("notifications.error"),
-                message: t("notifications.loadError"),
-                color: "red",
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, [t]);
-
+    // loading starts true, so the first fetch needs no reset; loadAgreements sets it
+    // for later fetches
     useEffect(() => {
-        loadAgreements();
-    }, [loadAgreements]);
+        async function fetchAgreements() {
+            try {
+                const [currentResult, allResult] = await Promise.all([
+                    getCurrentUserAgreement(),
+                    getAllUserAgreements(),
+                ]);
+
+                if (currentResult.success) {
+                    setCurrentAgreement(currentResult.data);
+                    setContent(currentResult.data?.content || "");
+                }
+
+                if (allResult.success) {
+                    setAllAgreements(allResult.data || []);
+                }
+            } catch {
+                notifications.show({
+                    title: t("notifications.error"),
+                    message: t("notifications.loadError"),
+                    color: "red",
+                });
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchAgreements();
+    }, [t, reloadCount]);
+
+    const loadAgreements = useCallback(() => {
+        setLoading(true);
+        setReloadCount(count => count + 1);
+    }, []);
 
     const handleSave = async () => {
         if (!content?.trim()) {
@@ -91,7 +99,7 @@ export function UserAgreementEditor() {
                     color: "green",
                 });
                 // Reload to get updated data including acceptance count
-                await loadAgreements();
+                loadAgreements();
             } else {
                 notifications.show({
                     title: t("notifications.error"),

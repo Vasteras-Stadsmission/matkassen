@@ -176,33 +176,41 @@ export function EnrollmentChecklist() {
         }),
     );
 
-    const loadQuestions = useCallback(async () => {
-        setLoading(true);
-        try {
-            const result = await listVerificationQuestions();
-            if (result.success) {
-                setQuestions(result.data);
-            } else {
+    // Bumped by loadQuestions to refetch
+    const [reloadCount, setReloadCount] = useState(0);
+
+    // loading starts true, so the first fetch needs no reset; loadQuestions sets it
+    // for later fetches
+    useEffect(() => {
+        async function fetchQuestions() {
+            try {
+                const result = await listVerificationQuestions();
+                if (result.success) {
+                    setQuestions(result.data);
+                } else {
+                    notifications.show({
+                        title: t("notifications.error"),
+                        message: getErrorMessage(result.error),
+                        color: "red",
+                    });
+                }
+            } catch {
                 notifications.show({
                     title: t("notifications.error"),
-                    message: getErrorMessage(result.error),
+                    message: t("notifications.loadError"),
                     color: "red",
                 });
+            } finally {
+                setLoading(false);
             }
-        } catch {
-            notifications.show({
-                title: t("notifications.error"),
-                message: t("notifications.loadError"),
-                color: "red",
-            });
-        } finally {
-            setLoading(false);
         }
-    }, [t, getErrorMessage]);
+        fetchQuestions();
+    }, [t, getErrorMessage, reloadCount]);
 
-    useEffect(() => {
-        loadQuestions();
-    }, [loadQuestions]);
+    const loadQuestions = useCallback(() => {
+        setLoading(true);
+        setReloadCount(count => count + 1);
+    }, []);
 
     const handleAddQuestion = () => {
         setEditingQuestion(null);

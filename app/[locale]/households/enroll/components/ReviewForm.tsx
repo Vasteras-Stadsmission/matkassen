@@ -70,22 +70,32 @@ export default function ReviewForm({
         {},
     );
     const [primaryLocationName, setPrimaryLocationName] = useState<string>("");
-    const [responsibleStaffName, setResponsibleStaffName] = useState<string>("");
-    const [responsibleStaffIsFormer, setResponsibleStaffIsFormer] = useState(false);
+    const responsibleUserId = formData.household?.responsible_user_id;
+    // The staff member last fetched; shown only while they are still the responsible one
+    const [fetchedResponsibleStaff, setFetchedResponsibleStaff] = useState<{
+        userId: string;
+        name: string;
+        isFormer: boolean;
+    } | null>(null);
+    const responsibleStaff =
+        responsibleUserId && fetchedResponsibleStaff?.userId === responsibleUserId
+            ? fetchedResponsibleStaff
+            : null;
+    const responsibleStaffName = responsibleStaff?.name ?? "";
+    const responsibleStaffIsFormer = responsibleStaff?.isFormer ?? false;
     const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
+    const parcels = formData.foodParcels?.parcels;
+    const defaultParcelLocationId = formData.foodParcels?.pickupLocationId;
     const parcelLocationIds = useMemo(
         () =>
             Array.from(
                 new Set(
-                    (formData.foodParcels?.parcels || [])
-                        .map(
-                            parcel =>
-                                parcel.pickupLocationId || formData.foodParcels.pickupLocationId,
-                        )
+                    (parcels || [])
+                        .map(parcel => parcel.pickupLocationId || defaultParcelLocationId)
                         .filter((locationId): locationId is string => !!locationId),
                 ),
             ),
-        [formData.foodParcels?.parcels, formData.foodParcels?.pickupLocationId],
+        [parcels, defaultParcelLocationId],
     );
 
     // Format time for display
@@ -213,25 +223,26 @@ export default function ReviewForm({
     ]);
 
     useEffect(() => {
-        const responsibleUserId = formData.household?.responsible_user_id;
+        if (!responsibleUserId) return;
 
-        if (!responsibleUserId) {
-            setResponsibleStaffName("");
-            setResponsibleStaffIsFormer(false);
-            return;
-        }
-
+        let cancelled = false;
         getResponsibleStaffOptionsAction(responsibleUserId)
             .then(options => {
+                if (cancelled) return;
                 const responsibleUser = options.find(option => option.id === responsibleUserId);
-                setResponsibleStaffName(responsibleUser?.displayName || "");
-                setResponsibleStaffIsFormer(responsibleUser?.isFormer || false);
+                setFetchedResponsibleStaff({
+                    userId: responsibleUserId,
+                    name: responsibleUser?.displayName || "",
+                    isFormer: responsibleUser?.isFormer || false,
+                });
             })
             .catch(() => {
-                setResponsibleStaffName("");
-                setResponsibleStaffIsFormer(false);
+                if (!cancelled) setFetchedResponsibleStaff(null);
             });
-    }, [formData.household?.responsible_user_id]);
+        return () => {
+            cancelled = true;
+        };
+    }, [responsibleUserId]);
 
     return (
         <Card withBorder p="md" radius="md" shadow="sm">

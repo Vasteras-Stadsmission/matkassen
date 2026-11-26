@@ -35,6 +35,24 @@ import classes from "./HeaderSimple.module.css";
 // Special home link for the logo
 const HOME_LINK = "/";
 
+/**
+ * The nav link to highlight for a path: the home link on "/", else an exact
+ * match, else the longest link the path starts with (so /households/enroll
+ * highlights /households), else none.
+ */
+export function getActiveLink(pathname: string, links: { link: string }[]): string {
+    if (!pathname) return "";
+    if (pathname === "/") return HOME_LINK;
+
+    const exactMatch = links.find(link => link.link === pathname);
+    if (exactMatch) return exactMatch.link;
+
+    const matchingLinks = links
+        .filter(link => pathname.startsWith(link.link))
+        .sort((a, b) => b.link.length - a.link.length);
+    return matchingLinks.length > 0 ? matchingLinks[0].link : "";
+}
+
 export function HeaderSimple() {
     const pathname = usePathname();
     const router = useRouter();
@@ -54,8 +72,6 @@ export function HeaderSimple() {
     // showing admin nav/settings to non-admin users while the session loads.
     const isAdmin = status !== "loading" && session?.user?.role === "admin";
 
-    // State to track active link - initialized as empty string to ensure consistent SSR/client rendering
-    const [active, setActive] = useState("");
     const [issuesCount, setIssuesCount] = useState(0);
 
     // Fetch issues count on mount (only for admins)
@@ -105,29 +121,7 @@ export function HeaderSimple() {
         [t, issuesCount, isAdmin],
     );
 
-    // Calculate active link after hydration to prevent SSR/client mismatch
-    useEffect(() => {
-        if (!pathname) return;
-
-        if (pathname === "/" || pathname === "") {
-            setActive(HOME_LINK);
-            return;
-        }
-
-        // First check for exact matches
-        const exactMatch = links.find(link => link.link === pathname);
-        if (exactMatch) {
-            setActive(exactMatch.link);
-            return;
-        }
-
-        // If we have a nested path like /households/enroll, prioritize the most specific match
-        const matchingLinks = links
-            .filter(link => pathname.startsWith(link.link))
-            .sort((a, b) => b.link.length - a.link.length); // Sort by length descending to get most specific match first
-
-        setActive(matchingLinks.length > 0 ? matchingLinks[0].link : "");
-    }, [pathname, links]);
+    const active = getActiveLink(pathname, links);
 
     // QR code scanning button; the schedule hub opens the parcel at its location
     const scanQrLabel = t("navigation.scanQrCode");
@@ -136,56 +130,48 @@ export function HeaderSimple() {
         openScanner();
     };
     const handleScan = (parcelId: string) => router.push(`/schedule?parcel=${parcelId}`);
-    const ScanQRCodeButton = () => {
-        if (showIconOnlyActions) {
-            return (
-                <Tooltip label={scanQrLabel} position="bottom" withArrow>
-                    <ActionIcon
-                        onClick={handleScanClick}
-                        variant="outline"
-                        aria-label={scanQrLabel}
-                        size="lg"
-                    >
-                        <IconQrcode size={18} stroke={1.8} />
-                    </ActionIcon>
-                </Tooltip>
-            );
-        }
-
-        return (
-            <Button
+    const scanQrCodeButton = showIconOnlyActions ? (
+        <Tooltip label={scanQrLabel} position="bottom" withArrow>
+            <ActionIcon
                 onClick={handleScanClick}
                 variant="outline"
-                leftSection={<IconQrcode size={18} stroke={1.8} />}
+                aria-label={scanQrLabel}
+                size="lg"
             >
-                {scanQrLabel}
-            </Button>
-        );
-    };
+                <IconQrcode size={18} stroke={1.8} />
+            </ActionIcon>
+        </Tooltip>
+    ) : (
+        <Button
+            onClick={handleScanClick}
+            variant="outline"
+            leftSection={<IconQrcode size={18} stroke={1.8} />}
+        >
+            {scanQrLabel}
+        </Button>
+    );
 
     // In-app help link — points at /help index where role-filtered manuals
     // are listed. Visible to every authenticated user regardless of role;
     // the index itself filters which manuals to show.
     const helpLabel = t("navigation.help");
     const helpAriaLabel = t("navigation.helpAria");
-    const HelpLink = () => {
-        // Always render as an icon-only button to keep the header compact.
-        // The ScanQR button already carries text, so stacking two labelled
-        // buttons would eat into the nav area.
-        return (
-            <Tooltip label={helpLabel} position="bottom" withArrow>
-                <ActionIcon
-                    component={LocalizedLink}
-                    href="/help"
-                    variant="subtle"
-                    aria-label={helpAriaLabel}
-                    size="lg"
-                >
-                    <IconHelpCircle size={20} stroke={1.8} />
-                </ActionIcon>
-            </Tooltip>
-        );
-    };
+    // Always render as an icon-only button to keep the header compact.
+    // The ScanQR button already carries text, so stacking two labelled
+    // buttons would eat into the nav area.
+    const helpLink = (
+        <Tooltip label={helpLabel} position="bottom" withArrow>
+            <ActionIcon
+                component={LocalizedLink}
+                href="/help"
+                variant="subtle"
+                aria-label={helpAriaLabel}
+                size="lg"
+            >
+                <IconHelpCircle size={20} stroke={1.8} />
+            </ActionIcon>
+        </Tooltip>
+    );
 
     const handleNavigation = () => {
         // Close mobile menu if open
@@ -284,10 +270,10 @@ export function HeaderSimple() {
                         visibleFrom="md"
                     >
                         <LanguageSwitcher />
-                        <HelpLink />
+                        {helpLink}
                         <AuthDropdown />
                         {isAdmin && <SettingsDropdown />}
-                        <ScanQRCodeButton />
+                        {scanQrCodeButton}
                     </Group>
                     <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
                 </Container>
@@ -306,8 +292,8 @@ export function HeaderSimple() {
                     {mobileLinks}
                     <div className={classes.mobileActions}>
                         <LanguageSwitcher />
-                        <HelpLink />
-                        <ScanQRCodeButton />
+                        {helpLink}
+                        {scanQrCodeButton}
                         {isAdmin && <SettingsDropdown />}
                         <AuthDropdown />
                     </div>

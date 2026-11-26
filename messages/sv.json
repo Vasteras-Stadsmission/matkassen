@@ -1781,15 +1781,6 @@
             "pastError": "Det går inte att boka matstöd i det förflutna."
         }
     },
-    "smsConfirm": {
-        "title": "Skicka SMS",
-        "recentWarning": "Nyligen skickat",
-        "recentWarningMessage": "Ett SMS skickades till denna mottagare kl {time}. Är du säker på att du vill skicka ett till?",
-        "previousSms": "Tidigare SMS",
-        "moreHistory": "+{count} till",
-        "cancel": "Avbryt",
-        "confirm": "Skicka SMS"
-    },
     "statistics": {
         "title": "Statistik",
         "description": "Översikt över tjänstestatistik och trender",

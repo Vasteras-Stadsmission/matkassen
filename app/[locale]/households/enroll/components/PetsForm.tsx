@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Group, Title, Text, Loader, Stack } from "@mantine/core";
 import { getPetSpecies } from "../actions";
 import CounterInput from "@/components/CounterInput";
@@ -15,7 +15,7 @@ interface PetsFormProps {
 export default function PetsForm({ data, updateData }: PetsFormProps) {
     const t = useTranslations("pets");
 
-    const [petTypes, setPetTypes] = useState<PetSpecies[]>([]);
+    const [fetchedPetTypes, setFetchedPetTypes] = useState<PetSpecies[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [petCounts, setPetCounts] = useState<Record<string, number>>({});
     const [speciesNameMap, setSpeciesNameMap] = useState<Record<string, string>>({});
@@ -40,11 +40,11 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
                     }
                 });
 
-                setPetTypes(species);
+                setFetchedPetTypes(species);
                 setPetCounts(counts);
                 setSpeciesNameMap(names);
             } catch {
-                setPetTypes([]);
+                setFetchedPetTypes([]);
                 setPetCounts({});
                 setSpeciesNameMap({});
             } finally {
@@ -55,29 +55,24 @@ export default function PetsForm({ data, updateData }: PetsFormProps) {
         fetchPetSpecies();
     }, [data]);
 
-    useEffect(() => {
-        if (isLoading || data.length === 0) {
-            return;
-        }
+    // Add species the household's pets have but the fetched list lacks, as inactive
+    const petTypes = useMemo(() => {
+        const existingIds = new Set(fetchedPetTypes.map(type => type.id));
+        const missingTypes: PetSpecies[] = [];
 
-        setPetTypes(prevTypes => {
-            const existingIds = new Set(prevTypes.map(type => type.id));
-            const missingTypes: PetSpecies[] = [];
-
-            data.forEach(pet => {
-                if (!existingIds.has(pet.species)) {
-                    missingTypes.push({
-                        id: pet.species,
-                        name: pet.speciesName || t("unknownPetType"),
-                        isActive: false,
-                    });
-                    existingIds.add(pet.species);
-                }
-            });
-
-            return missingTypes.length > 0 ? [...prevTypes, ...missingTypes] : prevTypes;
+        data.forEach(pet => {
+            if (!existingIds.has(pet.species)) {
+                missingTypes.push({
+                    id: pet.species,
+                    name: pet.speciesName || t("unknownPetType"),
+                    isActive: false,
+                });
+                existingIds.add(pet.species);
+            }
         });
-    }, [data, isLoading, t]);
+
+        return missingTypes.length > 0 ? [...fetchedPetTypes, ...missingTypes] : fetchedPetTypes;
+    }, [fetchedPetTypes, data, t]);
 
     const updatePetsData = (counts: Record<string, number>) => {
         const petsData: Pet[] = [];

@@ -260,24 +260,20 @@ export function HouseholdWizard({
     );
 
     // Update form data if initialData changes (e.g. when data finishes loading in edit mode)
-    useEffect(() => {
+    const [syncedInitialData, setSyncedInitialData] = useState(initialData);
+    if (initialData !== syncedInitialData) {
+        setSyncedInitialData(initialData);
         if (initialData) {
             setFormData(initialData);
         }
-    }, [initialData]);
+    }
 
-    // Track original phone number for edit mode (to detect changes)
-    // Store stripped version (without +46) to match form values format
-    const originalPhoneRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (
-            mode === "edit" &&
-            initialData?.household?.phone_number &&
-            originalPhoneRef.current === null
-        ) {
-            originalPhoneRef.current = stripSwedishPrefix(initialData.household.phone_number);
-        }
-    }, [mode, initialData]);
+    // Track original phone number for edit mode (to detect changes): the
+    // first one loaded, stripped (without +46) to match form values format
+    const [originalPhone, setOriginalPhone] = useState<string | null>(null);
+    if (mode === "edit" && initialData?.household?.phone_number && originalPhone === null) {
+        setOriginalPhone(stripSwedishPrefix(initialData.household.phone_number));
+    }
 
     // Function to handle navigation between steps with appropriate validation
     const nextStep = async () => {
@@ -441,12 +437,9 @@ export function HouseholdWizard({
 
     // Fetch global verification questions when in create mode
     useEffect(() => {
-        if (mode !== "create") {
-            setVerificationQuestions([]);
-            setHasVerificationQuestions(false);
-            setVerificationQuestionsError(null);
-            return;
-        }
+        // Edit mode has no verification questions; the state starts empty and
+        // a wizard never switches mode
+        if (mode !== "create") return;
 
         // Cancel any in-flight request to prevent race conditions
         if (abortControllerRef.current) {
@@ -749,9 +742,7 @@ export function HouseholdWizard({
                                     : null
                             }
                             originalPhone={
-                                mode === "edit"
-                                    ? (originalPhoneRef.current ?? undefined)
-                                    : undefined
+                                mode === "edit" ? (originalPhone ?? undefined) : undefined
                             }
                             pickupLocationsData={pickupLocations}
                         />
