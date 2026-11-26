@@ -21,7 +21,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { Comment, GithubUserData } from "./enroll/types";
 import { notDeleted, isDeleted } from "@/app/db/query-helpers";
 import {
-    protectedAdminAction,
+    protectedAdminAgreementAction,
     protectedAdminAgreementReadAction,
     protectedAgreementAction,
     protectedAgreementReadAction,
@@ -512,7 +512,7 @@ export const addHouseholdComment = protectedAgreementAction(
 );
 
 // Function to delete a comment
-export const deleteHouseholdComment = protectedAdminAction(
+export const deleteHouseholdComment = protectedAdminAgreementAction(
     async (session, commentId: string): Promise<ActionResult<boolean>> => {
         try {
             // Auth already verified by protectedAction wrapper

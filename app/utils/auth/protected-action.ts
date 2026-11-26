@@ -135,11 +135,11 @@ export function protectedAdminAction<T extends any[], R>(
 }
 
 /**
- * Like protectedAdminAction but also verifies household access.
- * Use this for admin-only household mutations.
+ * Like protectedAdminAction but also requires agreement acceptance and verifies
+ * household access. Use this for admin-only household mutations.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function protectedAdminHouseholdAction<T extends [string, ...any[]], R>(
+export function protectedAdminAgreementHouseholdAction<T extends [string, ...any[]], R>(
     action: (
         session: AuthSession,
         household: HouseholdData,
@@ -159,6 +159,11 @@ export function protectedAdminHouseholdAction<T extends [string, ...any[]], R>(
             return authError("Admin access required", "FORBIDDEN");
         }
 
+        const agreementCheck = await verifyAgreementAcceptance(authResult.data);
+        if (agreementCheck) {
+            return agreementCheck;
+        }
+
         const householdResult = await verifyHouseholdAccess(householdId as string);
 
         if (!householdResult.success) {
@@ -170,9 +175,9 @@ export function protectedAdminHouseholdAction<T extends [string, ...any[]], R>(
                 githubUsername: authResult.data.user?.githubUsername,
                 householdId: householdResult.data.id,
                 action: action.name || "anonymous",
-                type: "protected_admin_household_action",
+                type: "protected_admin_agreement_household_action",
             },
-            "Protected admin household action executed",
+            "Protected admin agreement household action executed",
         );
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

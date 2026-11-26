@@ -82,7 +82,7 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
             return fn(mockSession, household, ...args);
         };
     },
-    protectedAdminHouseholdAction: (fn: (...args: unknown[]) => unknown) => {
+    protectedAdminAgreementHouseholdAction: (fn: (...args: unknown[]) => unknown) => {
         return async (householdId: string, ...args: unknown[]) => {
             const db = await getTestDb();
             const [household] = await db

@@ -23,6 +23,7 @@ import { logError } from "@/app/utils/logger";
 vi.mock("@/app/utils/auth/protected-action", () => ({
     protectedAgreementAction: (fn: (...args: unknown[]) => unknown) => fn,
     protectedAdminAction: (fn: (...args: unknown[]) => unknown) => fn,
+    protectedAdminAgreementAction: (fn: (...args: unknown[]) => unknown) => fn,
     protectedAdminAgreementReadAction: (fn: (...args: unknown[]) => unknown) => fn,
     protectedAgreementReadAction:
         (fn: (...args: unknown[]) => unknown) =>

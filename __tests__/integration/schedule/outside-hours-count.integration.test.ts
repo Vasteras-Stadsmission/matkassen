@@ -39,6 +39,11 @@ vi.mock("@/app/utils/auth/protected-action", () => ({
             return fn(mockSession, ...args);
         };
     },
+    protectedAdminAgreementAction: (fn: (...args: unknown[]) => unknown) => {
+        return async (...args: unknown[]) => {
+            return fn(mockSession, ...args);
+        };
+    },
     protectedReadAction: (fn: (...args: unknown[]) => unknown) => {
         return async (...args: unknown[]) => {
             return fn(mockSession, ...args);
