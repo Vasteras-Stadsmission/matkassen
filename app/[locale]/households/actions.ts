@@ -141,6 +141,27 @@ async function getHouseholdDetailsData(householdId: string) {
             return null;
         }
 
+        // An anonymized household's page shows only when it was removed. Its
+        // remaining data (members, parcels) is kept for statistics, not for this
+        // action, which handout staff can call too.
+        if (household.anonymized_at) {
+            return {
+                household,
+                creatorGithubData: null,
+                responsibleStaffData: null,
+                enrollmentSmsDelivered: false,
+                members: [],
+                dietaryRestrictions: [],
+                additionalNeeds: [],
+                pets: [],
+                foodParcels: { pickupLocationId: "", parcels: [] },
+                deletedParcels: [],
+                pickupLocation: null,
+                primaryPickupLocation: null,
+                comments: [],
+            };
+        }
+
         // Get household members
         const members = await db
             .select({
@@ -407,7 +428,8 @@ async function getHouseholdDetailsData(householdId: string) {
             action: "getHouseholdDetails",
             householdId,
         });
-        return null;
+        // Rethrow: a database failure must not look like a missing household.
+        throw error;
     }
 }
 

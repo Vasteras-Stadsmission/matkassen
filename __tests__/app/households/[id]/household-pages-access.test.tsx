@@ -37,10 +37,11 @@ vi.mock("next-intl/server", () => ({
     getLocale: async () => "en",
 }));
 
-const agreement = { accepted: true };
+// userId null: a signed-in user without a row in the users table.
+const agreement = { accepted: true, userId: "user-1" as string | null };
 vi.mock("@/app/utils/user-agreement", () => ({
     getCurrentAgreement: async () => ({ id: "agreement-1" }),
-    getUserIdByGithubUsername: async () => "user-1",
+    getUserIdByGithubUsername: async () => agreement.userId,
     hasUserAcceptedAgreement: async () => agreement.accepted,
 }));
 
@@ -111,11 +112,33 @@ describe("Household details page access", () => {
         vi.resetAllMocks();
         request.url = "/en/households/h1";
         agreement.accepted = true;
+        agreement.userId = "user-1";
         mockAuth.mockResolvedValue(createMockSession());
     });
 
     it("redirects a user who hasn't accepted the agreement instead of throwing", async () => {
         agreement.accepted = false;
+        const { default: HouseholdPage } = await import("@/app/[locale]/households/[id]/page");
+        const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
+
+        await expect(renderServerTree(<HouseholdPage params={params} />)).rejects.toThrow(
+            "NEXT_REDIRECT /agreement?callbackUrl=%2Fhouseholds%2Fh1",
+        );
+        expect(getHouseholdDetails).not.toHaveBeenCalled();
+    });
+
+    it("keeps the query string, so the opened parcel is open again after accepting", async () => {
+        agreement.accepted = false;
+        request.url = "/en/households/h1?parcel=p1";
+        const { default: HouseholdPage } = await import("@/app/[locale]/households/[id]/page");
+
+        await expect(renderServerTree(<HouseholdPage params={params} />)).rejects.toThrow(
+            "NEXT_REDIRECT /agreement?callbackUrl=%2Fhouseholds%2Fh1%3Fparcel%3Dp1",
+        );
+    });
+
+    it("redirects a user without a user row to the agreement, like the action refuses them", async () => {
+        agreement.userId = null;
         const { default: HouseholdPage } = await import("@/app/[locale]/households/[id]/page");
         const { getHouseholdDetails } = await import("@/app/[locale]/households/actions");
 
@@ -165,7 +188,21 @@ describe("Parcel management page access", () => {
         vi.resetAllMocks();
         request.url = "/en/households/h1/parcels";
         agreement.accepted = true;
+        agreement.userId = "user-1";
         mockAuth.mockResolvedValue(createMockSession());
+    });
+
+    // The edit page's client component calls getHouseholdFormData as a server
+    // action, which a browser can call without rendering any page.
+    it("refuses the household's form data to an admin who hasn't accepted the agreement", async () => {
+        agreement.accepted = false;
+        const { getHouseholdFormData } =
+            await import("@/app/[locale]/households/[id]/edit/actions");
+
+        await expect(getHouseholdFormData("h1")).resolves.toMatchObject({
+            success: false,
+            error: { code: "AGREEMENT_REQUIRED" },
+        });
     });
 
     it("redirects handout_staff without loading the household", async () => {

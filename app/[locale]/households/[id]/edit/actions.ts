@@ -17,7 +17,7 @@ import {
 import { eq, and, ne, isNull, inArray } from "drizzle-orm";
 import { FormData, GithubUserData } from "../../enroll/types";
 import {
-    protectedAdminAction,
+    protectedAdminAgreementAction,
     protectedAdminHouseholdAction,
 } from "@/app/utils/auth/protected-action";
 import {
@@ -201,7 +201,7 @@ async function ensureResponsibleUserIsAssignable(
 }
 
 // Function to format household details from DB format to form format for editing
-export const getHouseholdFormData = protectedAdminAction(
+export const getHouseholdFormData = protectedAdminAgreementAction(
     async (session: AuthSession, householdId: string): Promise<ActionResult<FormData>> => {
         try {
             // Auth already verified by protectedAction wrapper
