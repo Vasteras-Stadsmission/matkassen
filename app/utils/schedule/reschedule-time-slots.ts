@@ -24,14 +24,14 @@ export interface RescheduleTimeSlots {
  * The pickup times a reschedule dialog offers for a date. Used by
  * RescheduleInline, ReschedulePickupModal and BulkRescheduleModal.
  *
- * With alignToSlotGrid the first slot is rounded up to a multiple of the slot
- * duration from midnight, so the picker matches the server's slot rounding.
+ * Slots start at opening time, like the weekly schedule grid. The server
+ * accepts any start inside opening hours, so a grid counted from midnight
+ * would only hide valid times (10:30 with 45-minute slots, say).
  */
 export function getRescheduleTimeSlots(
     date: Date | null,
     locationSchedules: LocationScheduleInfo | null,
     slotDuration: number,
-    alignToSlotGrid: boolean,
 ): RescheduleTimeSlots {
     if (!date || !locationSchedules) {
         return { slots: [], firstAvailable: null, errorKey: null };
@@ -46,22 +46,16 @@ export function getRescheduleTimeSlots(
         return { slots: [], firstAvailable: null, errorKey: "noTimesAvailable" };
     }
 
-    let start = timeRange.earliestTime;
-    if (alignToSlotGrid) {
-        const [eh, em] = timeRange.earliestTime.split(":").map(Number);
-        const totalAligned = eh * 60 + Math.ceil(em / slotDuration) * slotDuration;
-        const alignedH = Math.floor(totalAligned / 60);
-        const alignedM = totalAligned % 60;
-        start = `${String(alignedH).padStart(2, "0")}:${String(alignedM).padStart(2, "0")}`;
-    }
-
-    const slots = generateTimeSlotsBetween(start, timeRange.latestTime, slotDuration, true).map(
-        timeString => ({
-            value: timeString,
-            label: timeString,
-            disabled: !isTimeAvailable(date, timeString, locationSchedules).isAvailable,
-        }),
-    );
+    const slots = generateTimeSlotsBetween(
+        timeRange.earliestTime,
+        timeRange.latestTime,
+        slotDuration,
+        true,
+    ).map(timeString => ({
+        value: timeString,
+        label: timeString,
+        disabled: !isTimeAvailable(date, timeString, locationSchedules).isAvailable,
+    }));
 
     const firstAvailable = slots.find(slot => !slot.disabled)?.value ?? null;
     return {

@@ -110,7 +110,7 @@ export default function RescheduleInline({
         // eslint-disable-next-line react-hooks/exhaustive-deps -- t is not referentially stable, intentionally excluded
     }, [isExpanded, locationId, parcelId]);
 
-    const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, true);
+    const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration);
     const availableTimes = timeSlots.slots;
     const selectedTime = selectedRescheduleTime(timeSlots, pickedTime);
     const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);

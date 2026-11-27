@@ -73,7 +73,7 @@ export default function BulkRescheduleModal({
         }
     }, [opened, locationId]);
 
-    const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, false);
+    const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration);
     const availableTimes = timeSlots.slots;
     const selectedTime = selectedRescheduleTime(timeSlots, pickedTime);
     const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);
