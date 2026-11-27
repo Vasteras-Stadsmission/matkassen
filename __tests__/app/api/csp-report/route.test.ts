@@ -115,6 +115,46 @@ describe("CSP report route", () => {
         await expect(response.json()).resolves.toEqual({ status: "received" });
     });
 
+    it.each([
+        "https://translate.google.com/gen204?sl=sv&tl=en",
+        "https://translate.googleapis.com/element/log?format=json",
+        "https://translate-pa.googleapis.com/v1/translateHtml",
+        "https://fonts.gstatic.com/s/i/productlogos/translate/v14/24px.svg",
+        "https://www.gstatic.com/_/translate_http/_/ss/k=translate_http.tr.abc/m=el_main_css",
+        "https://www.gstatic.com/images/branding/product/2x/translate_24dp.png",
+        "https://api.brs.intl.miui.com/browser/openai/translate/batch?x=1",
+    ])("skips browser translation noise: %s", async blockedUri => {
+        const response = await POST(
+            createRequest(
+                JSON.stringify({ "csp-report": { ...sampleReport, "blocked-uri": blockedUri } }),
+            ),
+        );
+
+        expect(response.status).toBe(200);
+        await expect(response.json()).resolves.toEqual({ status: "ignored" });
+        expect(mocks.storeCspViolation).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        "https://matcentralen.com/_next/static/chunks/abc123.js",
+        "inline",
+        "https://fonts.gstatic.com/s/roboto/v30/font.woff2",
+        "https://www.gstatic.com/images/branding/product/2x/googlelogo_24dp.png",
+        "https://api.brs.intl.miui.com/browser/other/endpoint",
+        "https://evil.example/translate/script.js",
+    ])("still stores other violations: %s", async blockedUri => {
+        const response = await POST(
+            createRequest(
+                JSON.stringify({ "csp-report": { ...sampleReport, "blocked-uri": blockedUri } }),
+            ),
+        );
+
+        expect(response.status).toBe(200);
+        expect(mocks.storeCspViolation).toHaveBeenCalledWith(
+            expect.objectContaining({ blockedUri }),
+        );
+    });
+
     it("rejects malformed JSON", async () => {
         const response = await POST(createRequest("{not-json"));
 

@@ -21,6 +21,32 @@ export async function OPTIONS() {
 // Max body size for CSP reports (10KB)
 const MAX_BODY_SIZE = 10 * 1024;
 
+// Browser page translation (Chrome's Google Translate, Xiaomi's browser) adds its own
+// images, CSS and requests to the page, and CSP blocks them. They made up most stored
+// reports and hid the app's own violations. Hosts and paths are the ones seen in
+// production.
+function isBrowserTranslation(blockedUri: unknown): boolean {
+    if (typeof blockedUri !== "string") return false;
+    let url: URL;
+    try {
+        url = new URL(blockedUri);
+    } catch {
+        return false;
+    }
+    const host = url.hostname;
+    const path = url.pathname;
+    return (
+        host === "translate.google.com" ||
+        host === "translate.googleapis.com" ||
+        host === "translate-pa.googleapis.com" ||
+        (host === "api.brs.intl.miui.com" && path.startsWith("/browser/openai/translate/")) ||
+        (host === "fonts.gstatic.com" && path.startsWith("/s/i/productlogos/translate/")) ||
+        (host === "www.gstatic.com" &&
+            (path.startsWith("/_/translate_http/") ||
+                (path.startsWith("/images/branding/product/") && path.includes("/translate_"))))
+    );
+}
+
 // Handle CSP violation reports
 export async function POST(request: NextRequest) {
     try {
@@ -49,6 +75,10 @@ export async function POST(request: NextRequest) {
 
         // Extract CSP report (handle both wrapped and direct formats)
         const report = body["csp-report"] || body;
+
+        if (isBrowserTranslation(report["blocked-uri"])) {
+            return NextResponse.json({ status: "ignored" }, { status: 200, headers: corsHeaders });
+        }
 
         // Get user agent from headers
         const userAgent = request.headers.get("user-agent");
