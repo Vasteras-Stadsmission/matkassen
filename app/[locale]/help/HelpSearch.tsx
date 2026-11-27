@@ -69,10 +69,6 @@ export function HelpSearch({ sections, placeholder, noResultsLabel }: HelpSearch
         return index.search(q).slice(0, MAX_RESULTS);
     }, [query, index]);
 
-    useEffect(() => {
-        setHighlightedIndex(0);
-    }, [query]);
-
     // Close dropdown when clicking outside the search container.
     useEffect(() => {
         if (!isOpen) return;
@@ -120,6 +116,7 @@ export function HelpSearch({ sections, placeholder, noResultsLabel }: HelpSearch
                 value={query}
                 onChange={e => {
                     setQuery(e.currentTarget.value);
+                    setHighlightedIndex(0);
                     setIsOpen(true);
                 }}
                 onFocus={() => setIsOpen(true)}

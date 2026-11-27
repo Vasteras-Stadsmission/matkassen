@@ -10,26 +10,26 @@ interface HouseholdsPageClientProps {
     initialHouseholds: Household[];
 }
 
+// Show success notifications from URL parameters
+function SearchParamsNotifier() {
+    const searchParams = useSearchParams();
+    const { showSuccessFromParams } = useActionWithNotification();
+
+    useEffect(() => {
+        showSuccessFromParams(searchParams);
+    }, [searchParams, showSuccessFromParams]);
+
+    return null;
+}
+
 export default function HouseholdsPageClient({ initialHouseholds }: HouseholdsPageClientProps) {
     const [households] = useState<Household[]>(initialHouseholds);
     const [error] = useState<string | null>(null);
 
-    // Show success notifications from URL parameters
-    const SearchParamsComponent = () => {
-        const searchParams = useSearchParams();
-        const { showSuccessFromParams } = useActionWithNotification();
-
-        useEffect(() => {
-            showSuccessFromParams(searchParams);
-        }, [searchParams, showSuccessFromParams]);
-
-        return null;
-    };
-
     return (
         <Box>
             <Suspense fallback={null}>
-                <SearchParamsComponent />
+                <SearchParamsNotifier />
             </Suspense>
 
             {error ? <Text c="red">{error}</Text> : <HouseholdsTable households={households} />}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useEffectEvent } from "react";
 import {
     Container,
     Title,
@@ -176,33 +176,42 @@ export function EnrollmentChecklist() {
         }),
     );
 
-    const loadQuestions = useCallback(async () => {
-        setLoading(true);
-        try {
-            const result = await listVerificationQuestions();
-            if (result.success) {
-                setQuestions(result.data);
-            } else {
-                notifications.show({
-                    title: t("notifications.error"),
-                    message: getErrorMessage(result.error),
-                    color: "red",
-                });
-            }
-        } catch {
-            notifications.show({
-                title: t("notifications.error"),
-                message: t("notifications.loadError"),
-                color: "red",
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, [t, getErrorMessage]);
+    // Bumped by loadQuestions to refetch
+    const [reloadCount, setReloadCount] = useState(0);
 
+    // An effect event, so the fetch doesn't rerun when t changes
+    const showLoadError = useEffectEvent((error?: { code: string; message: string }) => {
+        notifications.show({
+            title: t("notifications.error"),
+            message: error ? getErrorMessage(error) : t("notifications.loadError"),
+            color: "red",
+        });
+    });
+
+    // loading starts true, so the first fetch needs no reset; loadQuestions sets it
+    // for later fetches
     useEffect(() => {
-        loadQuestions();
-    }, [loadQuestions]);
+        async function fetchQuestions() {
+            try {
+                const result = await listVerificationQuestions();
+                if (result.success) {
+                    setQuestions(result.data);
+                } else {
+                    showLoadError(result.error);
+                }
+            } catch {
+                showLoadError();
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchQuestions();
+    }, [reloadCount]);
+
+    const loadQuestions = useCallback(() => {
+        setLoading(true);
+        setReloadCount(count => count + 1);
+    }, []);
 
     const handleAddQuestion = () => {
         setEditingQuestion(null);

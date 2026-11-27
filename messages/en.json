@@ -1781,15 +1781,6 @@
             "pastError": "Cannot schedule food support in the past."
         }
     },
-    "smsConfirm": {
-        "title": "Send SMS",
-        "recentWarning": "Recently Sent",
-        "recentWarningMessage": "An SMS was sent to this recipient at {time}. Are you sure you want to send another?",
-        "previousSms": "Previous SMS",
-        "moreHistory": "+{count} more",
-        "cancel": "Cancel",
-        "confirm": "Send SMS"
-    },
     "statistics": {
         "title": "Statistics",
         "description": "Overview of service statistics and trends",

@@ -139,8 +139,15 @@ export default function IssuesPageClient() {
     const locale = useLocale();
 
     const [issues, setIssues] = useState<IssuesData | null>(null);
+    // "Has the pickup passed?" compares against this clock, updated every
+    // minute and on each fetch, rather than reading the clock during render.
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [activeFilter, setActiveFilter] = useState<FilterType>("all");
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
     const [rescheduleParcelId, setRescheduleParcelId] = useState<string | null>(null);
@@ -255,14 +262,13 @@ export default function IssuesPageClient() {
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    const fetchData = useCallback(async () => {
+    // Loading starts true, so the first fetch needs no reset; refetchData sets
+    // it for later fetches. The fetch doesn't use t, so a new t doesn't rerun it.
+    const loadIssues = useCallback(async () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
         abortControllerRef.current = new AbortController();
-
-        setLoading(true);
-        setError(null);
 
         try {
             const response = await adminFetch("/api/admin/issues", {
@@ -270,29 +276,37 @@ export default function IssuesPageClient() {
             });
 
             if (!response.ok) {
-                throw new Error(t("error"));
+                throw new Error(`Issues request failed: ${response.status}`);
             }
 
             const data = await response.json();
             setIssues(data);
+            setLoadFailed(false);
+            setNow(Date.now());
         } catch (err) {
             if (err instanceof Error && err.name === "AbortError") {
                 return;
             }
-            setError(t("error"));
+            setLoadFailed(true);
         } finally {
             setLoading(false);
         }
-    }, [t]);
+    }, []);
 
     useEffect(() => {
-        fetchData();
+        loadIssues();
         return () => {
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
         };
-    }, [fetchData]);
+    }, [loadIssues]);
+
+    const refetchData = () => {
+        setLoading(true);
+        setLoadFailed(false);
+        void loadIssues();
+    };
 
     const formatPickupTime = (earliest: string, latest: string) => {
         const earliestDate = new Date(earliest);
@@ -688,9 +702,9 @@ export default function IssuesPageClient() {
                     </Chip.Group>
                 )}
 
-                {error && (
+                {loadFailed && (
                     <Alert icon={<IconAlertCircle size={16} />} title={t("error")} color="red">
-                        {error}
+                        {t("error")}
                     </Alert>
                 )}
 
@@ -1015,7 +1029,7 @@ export default function IssuesPageClient() {
                                 const pickupPassed =
                                     isParcelRetry &&
                                     (!sms.pickupEarliest ||
-                                        new Date(sms.pickupEarliest).getTime() < Date.now());
+                                        new Date(sms.pickupEarliest).getTime() < now);
 
                                 return (
                                     <Paper
@@ -1359,7 +1373,7 @@ export default function IssuesPageClient() {
                                                         color: "green",
                                                         icon: <IconCheck size="1rem" />,
                                                     });
-                                                    void fetchData();
+                                                    refetchData();
                                                 }}
                                             />
                                         )}

@@ -91,6 +91,9 @@ vi.mock("@mantine/dates", () => ({
                 <button type="button" onClick={() => onDateChange("2026-09-01")}>
                     Next month
                 </button>
+                <button type="button" onClick={() => onDateChange(date)}>
+                    Pick shown month
+                </button>
             </div>
         );
     },
@@ -219,6 +222,22 @@ describe("LimitsTab", () => {
         expect(screen.getByTestId("visible-month").textContent).toBe("2026-09");
         expect(screen.getByTestId("rendered-day").textContent).toContain("9");
         expect(screen.getByTestId("rendered-day").textContent).not.toContain("8");
+    });
+
+    it("stops showing the month spinner once data arrives, also when the shown month is picked again", async () => {
+        render(
+            <MantineProvider>
+                <LimitsTab location={location} />
+            </MantineProvider>,
+        );
+        const spinner = () => document.querySelector(".mantine-Loader-root");
+
+        expect(spinner()).not.toBeNull();
+        await waitFor(() => expect(spinner()).toBeNull());
+
+        fireEvent.click(screen.getByRole("button", { name: "Pick shown month" }));
+        expect(spinner()).toBeNull();
+        expect(mockGetDailyLimitMonthData).toHaveBeenCalledTimes(1);
     });
 
     it("keeps the editor compact and shows booked/max details in the review drawer", async () => {

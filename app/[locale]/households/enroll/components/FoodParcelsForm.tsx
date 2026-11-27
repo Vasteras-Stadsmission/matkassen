@@ -84,7 +84,9 @@ export default function FoodParcelsForm({
     const compactCalendar = useMediaQuery("(max-width: 62rem)");
 
     const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
-    const [locationError, setLocationError] = useState<string | null>(null);
+    const [locationError, setLocationError] = useState<string | null>(
+        error?.field === "pickupLocationId" ? error.message : null,
+    );
     const [timeErrors, setTimeErrors] = useState<{ [key: string]: string }>({});
     const [bulkTimeMode, setBulkTimeMode] = useState(false);
     const [bulkStartTime, setBulkStartTime] = useState("12:00");
@@ -166,8 +168,8 @@ export default function FoodParcelsForm({
     const [visibleCalendarMonth, setVisibleCalendarMonth] = useState(
         () => `${Time.now().toDateString().slice(0, 7)}-01`,
     );
+    // The capacity reset below shows the spinner when the month really changes
     const handleVisibleCalendarMonthChange = useCallback((month: string) => {
-        setLoadingCapacityData(true);
         setVisibleCalendarMonth(month);
     }, []);
 
@@ -375,7 +377,10 @@ export default function FoodParcelsForm({
         return { same: false, representative, summary: counts };
     }, [formState.parcels, getOpeningHoursForLocationDate, getParcelLocationId, isPastDate]);
 
-    useEffect(() => {
+    // Take in data and validation errors from the wizard, during render
+    const [syncedData, setSyncedData] = useState(data);
+    if (data !== syncedData) {
+        setSyncedData(data);
         if (data.pickupLocationId) {
             setLocationError(null);
         }
@@ -385,15 +390,13 @@ export default function FoodParcelsForm({
             pickupLocationId: data.pickupLocationId || prevState.pickupLocationId,
             parcels: data.parcels?.length > 0 ? data.parcels : prevState.parcels,
         }));
-    }, [data]);
+    }
 
-    useEffect(() => {
-        if (error && error.field === "pickupLocationId") {
-            setLocationError(error.message);
-        } else {
-            setLocationError(null);
-        }
-    }, [error]);
+    const [syncedError, setSyncedError] = useState(error);
+    if (error !== syncedError) {
+        setSyncedError(error);
+        setLocationError(error?.field === "pickupLocationId" ? error.message : null);
+    }
 
     useEffect(() => {
         async function fetchData() {
@@ -460,6 +463,36 @@ export default function FoodParcelsForm({
         };
     }, []);
 
+    // Reset the capacity state for a new location or month during render, before
+    // the effect below fetches it
+    const [capacityRequest, setCapacityRequest] = useState<{
+        locationId: string;
+        month: string;
+    } | null>(null);
+    if (
+        capacityRequest?.locationId !== formState.pickupLocationId ||
+        capacityRequest?.month !== visibleCalendarMonth
+    ) {
+        setCapacityRequest({
+            locationId: formState.pickupLocationId,
+            month: visibleCalendarMonth,
+        });
+        if (!formState.pickupLocationId) {
+            setCapacityData(null);
+            setLocationSchedules(null);
+            setSlotDuration(15);
+            setLoadingCapacityData(false);
+            setCapacityLoadFailed(false);
+        } else {
+            if (capacityRequest?.locationId !== formState.pickupLocationId) {
+                setCapacityData(null);
+                setLocationSchedules(null);
+            }
+            setLoadingCapacityData(true);
+            setCapacityLoadFailed(false);
+        }
+    }
+
     useEffect(() => {
         const locationId = formState.pickupLocationId;
         const requestId = activeLocationRequestRef.current + 1;
@@ -467,23 +500,12 @@ export default function FoodParcelsForm({
 
         if (!locationId) {
             capacityLocationRef.current = null;
-            setCapacityData(null);
-            setLocationSchedules(null);
-            setSlotDuration(15);
-            setLoadingCapacityData(false);
-            setCapacityLoadFailed(false);
             return;
         }
 
         let cancelled = false;
         const locationChanged = capacityLocationRef.current !== locationId;
         capacityLocationRef.current = locationId;
-        if (locationChanged) {
-            setCapacityData(null);
-            setLocationSchedules(null);
-        }
-        setLoadingCapacityData(true);
-        setCapacityLoadFailed(false);
 
         async function fetchActiveLocationData() {
             try {

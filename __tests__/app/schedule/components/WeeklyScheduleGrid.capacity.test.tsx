@@ -54,34 +54,36 @@ const parcel = (id: string, pickupDate: Date) => ({
     locationId: "location-1",
 });
 
+const alwaysOpen = {
+    schedules: [
+        {
+            id: "schedule-1",
+            name: "Always open",
+            startDate: "2020-01-01",
+            endDate: "2099-12-31",
+            days: [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ].map(weekday => ({
+                weekday,
+                isOpen: true,
+                openingTime: "09:00",
+                closingTime: "10:00",
+            })),
+        },
+    ],
+};
+
 describe("WeeklyScheduleGrid daily capacity", () => {
     it("labels a day when bookings exceed the effective daily limit", async () => {
         const date = futureDate();
         const laterParcelDate = new Date(date.getTime() + 15 * 60 * 1000);
-        getPickupLocationSchedulesAction.mockResolvedValue({
-            schedules: [
-                {
-                    id: "schedule-1",
-                    name: "Always open",
-                    startDate: "2020-01-01",
-                    endDate: "2099-12-31",
-                    days: [
-                        "monday",
-                        "tuesday",
-                        "wednesday",
-                        "thursday",
-                        "friday",
-                        "saturday",
-                        "sunday",
-                    ].map(weekday => ({
-                        weekday,
-                        isOpen: true,
-                        openingTime: "09:00",
-                        closingTime: "10:00",
-                    })),
-                },
-            ],
-        });
+        getPickupLocationSchedulesAction.mockResolvedValue(alwaysOpen);
 
         render(
             <MantineProvider>
@@ -102,5 +104,30 @@ describe("WeeklyScheduleGrid daily capacity", () => {
                 { selector: "[data-testid='capacity-indicator']" },
             ),
         ).toBeTruthy();
+    });
+});
+
+describe("WeeklyScheduleGrid outside-hours parcels", () => {
+    it("selects every outside-hours parcel already loaded when it mounts", async () => {
+        const date = futureDate();
+        getPickupLocationSchedulesAction.mockResolvedValue(alwaysOpen);
+
+        render(
+            <MantineProvider>
+                <WeeklyScheduleGrid
+                    weekDates={[date]}
+                    foodParcels={[]}
+                    outsideHoursParcels={[parcel("1", date), parcel("2", date)]}
+                    dailyLimitsByDate={{}}
+                    onParcelRescheduled={vi.fn()}
+                    locationId="location-1"
+                />
+            </MantineProvider>,
+        );
+
+        const button = await screen.findByRole("button", {
+            name: "outsideHours.rescheduleSelected (2)",
+        });
+        expect(button.hasAttribute("disabled")).toBe(false);
     });
 });

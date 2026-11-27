@@ -77,21 +77,17 @@ export default function HouseholdForm({
         ?.githubUsername;
 
     // Pickup locations state - use pre-fetched data if available, otherwise fetch
-    const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>(
-        pickupLocationsData || [],
-    );
+    const [fetchedPickupLocations, setFetchedPickupLocations] = useState<PickupLocation[]>([]);
+    const pickupLocations = pickupLocationsData ?? fetchedPickupLocations;
     const [responsibleStaffOptions, setResponsibleStaffOptions] = useState<
         ResponsibleStaffOption[]
     >([]);
 
     // Fetch pickup locations on mount only if not provided by parent
     useEffect(() => {
-        if (pickupLocationsData) {
-            setPickupLocations(pickupLocationsData);
-            return;
-        }
+        if (pickupLocationsData) return;
         getPickupLocationsAction()
-            .then(setPickupLocations)
+            .then(setFetchedPickupLocations)
             .catch(() => {
                 // Silently fail - location selector will just be empty
             });

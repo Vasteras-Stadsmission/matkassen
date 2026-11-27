@@ -108,7 +108,7 @@ export default function MembersForm({ data, updateData }: MembersFormProps) {
                     </Group>
                 ))}
 
-                <form onSubmit={addMemberForm.onSubmit(addMember)}>
+                <form onSubmit={event => addMemberForm.onSubmit(addMember)(event)}>
                     <Group gap="sm" pt="sm">
                         <NumberInput
                             ref={ageInputRef}

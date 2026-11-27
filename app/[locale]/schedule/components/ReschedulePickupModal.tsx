@@ -17,13 +17,12 @@ import {
     formatTime,
     formatDateToYMD,
     toStockholmDate,
-    generateTimeSlotsBetween,
 } from "@/app/utils/date-utils";
+import { isDateAvailable } from "@/app/utils/schedule/location-availability";
 import {
-    isDateAvailable,
-    isTimeAvailable,
-    getAvailableTimeRange,
-} from "@/app/utils/schedule/location-availability";
+    getRescheduleTimeSlots,
+    selectedRescheduleTime,
+} from "@/app/utils/schedule/reschedule-time-slots";
 import {
     getRescheduleErrorMessage,
     isAgreementRequiredCode,
@@ -49,11 +48,10 @@ export default function ReschedulePickupModal({
 
     // State for the form
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [selectedTime, setSelectedTime] = useState<string | null>(null);
+    // The time the user picked (null if they cleared it); undefined means the
+    // first available one
+    const [pickedTime, setPickedTime] = useState<string | null | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [availableTimes, setAvailableTimes] = useState<
-        { value: string; label: string; disabled: boolean }[]
-    >([]);
     const [error, setError] = useState<string | null>(null);
     const [slotDuration, setSlotDuration] = useState<number>(15); // Default to 15 minutes
     const [fullyBookedDates, setFullyBookedDates] = useState<Set<string>>(new Set());
@@ -64,18 +62,27 @@ export default function ReschedulePickupModal({
     const parcelId = foodParcel?.id;
     const parcelLocationId = foodParcel?.locationId;
 
-    // Reset form state and fetch location data when the modal opens
+    // Reset the form each time the modal opens, during render rather than in
+    // the fetch effect so the stale form never shows
+    const formKey =
+        opened && parcelId && parcelLocationId ? `${parcelLocationId}:${parcelId}` : null;
+    const [resetFor, setResetFor] = useState<string | null>(null);
+    if (formKey !== resetFor) {
+        setResetFor(formKey);
+        if (formKey) {
+            setSelectedDate(null);
+            setPickedTime(undefined);
+            setError(null);
+            setIsSubmitting(false);
+            setFullyBookedDates(new Set());
+            setMaxDate(undefined);
+            setAvailabilityLoaded(false);
+        }
+    }
+
+    // Fetch location data when the modal opens
     useEffect(() => {
         if (!opened || !parcelId || !parcelLocationId) return;
-
-        // Reset form state synchronously before fetching
-        setSelectedDate(null);
-        setSelectedTime(null);
-        setError(null);
-        setIsSubmitting(false);
-        setFullyBookedDates(new Set());
-        setMaxDate(undefined);
-        setAvailabilityLoaded(false);
 
         let cancelled = false;
 
@@ -107,58 +114,10 @@ export default function ReschedulePickupModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps -- t is not referentially stable, intentionally excluded
     }, [opened, parcelId, parcelLocationId]);
 
-    // Prepare available time slots based on the location schedule
-    useEffect(() => {
-        if (!selectedDate || !locationSchedules) return;
-
-        const dateAvailability = isDateAvailable(selectedDate, locationSchedules);
-        if (!dateAvailability.isAvailable) {
-            setError(t("reschedule.dateUnavailable"));
-            setAvailableTimes([]);
-            return;
-        }
-
-        const timeRange = getAvailableTimeRange(selectedDate, locationSchedules);
-        if (!timeRange.earliestTime || !timeRange.latestTime) {
-            setError(t("reschedule.noTimesAvailable"));
-            setAvailableTimes([]);
-            return;
-        }
-
-        setError(null);
-
-        // Align start time to the slot grid (ceil to nearest slot boundary from midnight)
-        // This ensures picker slots match server-side slot rounding without going before opening
-        const [eh, em] = timeRange.earliestTime.split(":").map(Number);
-        const totalAligned = eh * 60 + Math.ceil(em / slotDuration) * slotDuration;
-        const alignedH = Math.floor(totalAligned / 60);
-        const alignedM = totalAligned % 60;
-        const alignedStart = `${String(alignedH).padStart(2, "0")}:${String(alignedM).padStart(2, "0")}`;
-
-        const allTimes = generateTimeSlotsBetween(
-            alignedStart,
-            timeRange.latestTime,
-            slotDuration,
-            true,
-        );
-
-        const slots = allTimes.map(timeString => {
-            const timeAvailability = isTimeAvailable(selectedDate, timeString, locationSchedules);
-            return {
-                value: timeString,
-                label: timeString,
-                disabled: !timeAvailability.isAvailable,
-            };
-        });
-        setAvailableTimes(slots);
-
-        const firstAvailable = slots.find(slot => !slot.disabled);
-        setSelectedTime(firstAvailable?.value ?? null);
-        if (!firstAvailable) {
-            setError(t("reschedule.noTimesAvailable"));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- t and selectedTime are intentionally excluded
-    }, [selectedDate, locationSchedules, slotDuration]);
+    const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, true);
+    const availableTimes = timeSlots.slots;
+    const selectedTime = selectedRescheduleTime(timeSlots, pickedTime);
+    const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);
 
     const handleConfirm = async () => {
         if (!foodParcel || !selectedDate || !selectedTime) {
@@ -256,7 +215,8 @@ export default function ReschedulePickupModal({
                                 value={selectedDate}
                                 onChange={value => {
                                     setSelectedDate(value ? new Date(value) : null);
-                                    setSelectedTime(null);
+                                    setPickedTime(undefined);
+                                    setError(null);
                                 }}
                                 leftSection={<IconCalendar size="1rem" />}
                                 minDate={toStockholmDate(new Date())}
@@ -269,16 +229,16 @@ export default function ReschedulePickupModal({
                                 label={t("reschedule.newTime")}
                                 placeholder={t("reschedule.selectTime")}
                                 value={selectedTime}
-                                onChange={setSelectedTime}
+                                onChange={setPickedTime}
                                 data={availableTimes}
                                 leftSection={<IconClock size="1rem" />}
                                 disabled={!selectedDate || availableTimes.length === 0}
                                 required
                             />
 
-                            {error && (
+                            {shownError && (
                                 <Text color="red" size="sm">
-                                    {error}
+                                    {shownError}
                                 </Text>
                             )}
                         </Stack>
@@ -292,7 +252,7 @@ export default function ReschedulePickupModal({
                             onClick={handleConfirm}
                             loading={isSubmitting}
                             leftSection={<IconCheck size="1rem" />}
-                            disabled={!selectedDate || !selectedTime || !!error}
+                            disabled={!selectedDate || !selectedTime || !!shownError}
                         >
                             {t("reschedule.confirm")}
                         </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
     Box,
     Popover,
@@ -90,7 +90,20 @@ export function WeekPicker({
         }
         return today.getMonth();
     });
-    const [selectedWeek, setSelectedWeek] = useState<number | undefined>(value?.week);
+    const selectedWeek = value?.week;
+
+    // Show the month of a week chosen from outside
+    const valueKey = value ? `${value.year}-W${value.week}` : null;
+    const [syncedValueKey, setSyncedValueKey] = useState(valueKey);
+    if (valueKey !== syncedValueKey) {
+        setSyncedValueKey(valueKey);
+        if (value) {
+            // Derive calendar month/year from the actual week date range
+            const { startDate } = getWeekDateRange(value.year, value.week);
+            setSelectedYear(startDate.getFullYear());
+            setSelectedMonth(startDate.getMonth());
+        }
+    }
 
     // Generate calendar days and weeks
     const daysInCalendar = generateCalendarDays(selectedYear, selectedMonth);
@@ -156,7 +169,10 @@ export function WeekPicker({
         // Brief delay to show the highlight effect before closing the popover
         setTimeout(() => {
             onChange(newSelection);
-            setSelectedWeek(weekNumber);
+            // Show the chosen week's month next time, even when it was already chosen
+            const { startDate } = getWeekDateRange(year, weekNumber);
+            setSelectedYear(startDate.getFullYear());
+            setSelectedMonth(startDate.getMonth());
             setOpened(false);
 
             // Reset selection state after popover closes
@@ -245,19 +261,6 @@ export function WeekPicker({
     const getMonthName = (month: number) => {
         return format(new Date(2023, month, 1), "MMMM");
     };
-
-    // Update internal state when value changes externally
-    useEffect(() => {
-        if (value) {
-            setSelectedWeek(value.week);
-            // Derive calendar month/year from the actual week date range
-            const { startDate } = getWeekDateRange(value.year, value.week);
-            setSelectedYear(startDate.getFullYear());
-            setSelectedMonth(startDate.getMonth());
-        } else {
-            setSelectedWeek(undefined);
-        }
-    }, [value]);
 
     return (
         <Box>

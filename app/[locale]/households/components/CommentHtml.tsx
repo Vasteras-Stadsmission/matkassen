@@ -30,6 +30,33 @@ interface CommentHtmlProps {
     onDelete?: (commentId: string) => Promise<void>;
 }
 
+// Replace common patterns with HTML
+function processCommentText(text: string) {
+    // Convert URLs to clickable links (only http/https protocols)
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    let processedText = text.replace(urlRegex, url => {
+        // Validate URL to prevent javascript: or data: URIs
+        try {
+            const urlObj = new URL(url);
+            if (urlObj.protocol === "http:" || urlObj.protocol === "https:") {
+                return `<a href="${url}" rel="noopener noreferrer" target="_blank">${url}</a>`;
+            }
+        } catch {
+            // Invalid URL, return as-is
+        }
+        return url;
+    });
+
+    // Convert email addresses to clickable mailto links
+    const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g;
+    processedText = processedText.replace(
+        emailRegex,
+        email => `<a href="mailto:${email}">${email}</a>`,
+    );
+
+    return processedText;
+}
+
 export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
     const t = useTranslations("comments") as TranslationFunction;
     const [isDeleting, setIsDeleting] = useState(false);
@@ -62,33 +89,6 @@ export default function CommentHtml({ comment, onDelete }: CommentHtmlProps) {
             minute: "2-digit",
             second: "2-digit",
         }).format(dateObj);
-    };
-
-    // Replace common patterns with HTML
-    const processCommentText = (text: string) => {
-        // Convert URLs to clickable links (only http/https protocols)
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        let processedText = text.replace(urlRegex, url => {
-            // Validate URL to prevent javascript: or data: URIs
-            try {
-                const urlObj = new URL(url);
-                if (urlObj.protocol === "http:" || urlObj.protocol === "https:") {
-                    return `<a href="${url}" rel="noopener noreferrer" target="_blank">${url}</a>`;
-                }
-            } catch {
-                // Invalid URL, return as-is
-            }
-            return url;
-        });
-
-        // Convert email addresses to clickable mailto links
-        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g;
-        processedText = processedText.replace(
-            emailRegex,
-            email => `<a href="mailto:${email}">${email}</a>`,
-        );
-
-        return processedText;
     };
 
     const handleDelete = async () => {
