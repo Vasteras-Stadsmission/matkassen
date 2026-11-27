@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useEffectEvent } from "react";
 import {
     Container,
     Title,
@@ -46,6 +46,15 @@ export function PrivacyPolicyEditor() {
     const [showPreview, setShowPreview] = useState(false);
     const [selectedNewLang, setSelectedNewLang] = useState<string | null>(null);
 
+    // An effect event, so the fetch doesn't rerun when t changes
+    const showLoadError = useEffectEvent(() => {
+        notifications.show({
+            title: t("notifications.error"),
+            message: t("notifications.loadError"),
+            color: "red",
+        });
+    });
+
     useEffect(() => {
         async function fetchPolicies() {
             try {
@@ -74,17 +83,13 @@ export function PrivacyPolicyEditor() {
                     }
                 }
             } catch {
-                notifications.show({
-                    title: t("notifications.error"),
-                    message: t("notifications.loadError"),
-                    color: "red",
-                });
+                showLoadError();
             } finally {
                 setLoading(false);
             }
         }
         fetchPolicies();
-    }, [t]);
+    }, []);
 
     const addLanguage = (langCode: string) => {
         if (!activeLanguages.includes(langCode)) {

@@ -70,3 +70,18 @@ export function getRescheduleTimeSlots(
         errorKey: firstAvailable ? null : "noTimesAvailable",
     };
 }
+
+/**
+ * The time a reschedule dialog submits. pickedTime is undefined until the
+ * user picks one and null once they clear it. A picked time the slots no
+ * longer offer (say the slot duration loaded after the pick) falls back to the
+ * first available one.
+ */
+export function selectedRescheduleTime(
+    timeSlots: RescheduleTimeSlots,
+    pickedTime: string | null | undefined,
+): string | null {
+    if (pickedTime === null) return null;
+    const offered = timeSlots.slots.some(slot => slot.value === pickedTime && !slot.disabled);
+    return offered && pickedTime !== undefined ? pickedTime : timeSlots.firstAvailable;
+}

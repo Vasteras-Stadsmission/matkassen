@@ -147,7 +147,7 @@ export default function IssuesPageClient() {
         return () => clearInterval(interval);
     }, []);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [activeFilter, setActiveFilter] = useState<FilterType>("all");
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
     const [rescheduleParcelId, setRescheduleParcelId] = useState<string | null>(null);
@@ -262,8 +262,8 @@ export default function IssuesPageClient() {
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    // Loading starts true and error null, so the first fetch needs no reset;
-    // refetchData resets them for later fetches.
+    // Loading starts true, so the first fetch needs no reset; refetchData sets
+    // it for later fetches. The fetch doesn't use t, so a new t doesn't rerun it.
     const loadIssues = useCallback(async () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
@@ -276,21 +276,22 @@ export default function IssuesPageClient() {
             });
 
             if (!response.ok) {
-                throw new Error(t("error"));
+                throw new Error(`Issues request failed: ${response.status}`);
             }
 
             const data = await response.json();
             setIssues(data);
+            setLoadFailed(false);
             setNow(Date.now());
         } catch (err) {
             if (err instanceof Error && err.name === "AbortError") {
                 return;
             }
-            setError(t("error"));
+            setLoadFailed(true);
         } finally {
             setLoading(false);
         }
-    }, [t]);
+    }, []);
 
     useEffect(() => {
         loadIssues();
@@ -303,7 +304,7 @@ export default function IssuesPageClient() {
 
     const refetchData = () => {
         setLoading(true);
-        setError(null);
+        setLoadFailed(false);
         void loadIssues();
     };
 
@@ -701,9 +702,9 @@ export default function IssuesPageClient() {
                     </Chip.Group>
                 )}
 
-                {error && (
+                {loadFailed && (
                     <Alert icon={<IconAlertCircle size={16} />} title={t("error")} color="red">
-                        {error}
+                        {t("error")}
                     </Alert>
                 )}
 

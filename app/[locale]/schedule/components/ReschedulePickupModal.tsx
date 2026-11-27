@@ -19,7 +19,10 @@ import {
     toStockholmDate,
 } from "@/app/utils/date-utils";
 import { isDateAvailable } from "@/app/utils/schedule/location-availability";
-import { getRescheduleTimeSlots } from "@/app/utils/schedule/reschedule-time-slots";
+import {
+    getRescheduleTimeSlots,
+    selectedRescheduleTime,
+} from "@/app/utils/schedule/reschedule-time-slots";
 import {
     getRescheduleErrorMessage,
     isAgreementRequiredCode,
@@ -113,7 +116,7 @@ export default function ReschedulePickupModal({
 
     const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, true);
     const availableTimes = timeSlots.slots;
-    const selectedTime = pickedTime === undefined ? timeSlots.firstAvailable : pickedTime;
+    const selectedTime = selectedRescheduleTime(timeSlots, pickedTime);
     const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);
 
     const handleConfirm = async () => {

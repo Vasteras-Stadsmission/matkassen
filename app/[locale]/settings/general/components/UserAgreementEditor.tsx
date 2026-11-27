@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useEffectEvent } from "react";
 import {
     Container,
     Title,
@@ -42,6 +42,15 @@ export function UserAgreementEditor() {
     // Bumped by loadAgreements to refetch
     const [reloadCount, setReloadCount] = useState(0);
 
+    // An effect event, so the fetch doesn't rerun when t changes
+    const showLoadError = useEffectEvent(() => {
+        notifications.show({
+            title: t("notifications.error"),
+            message: t("notifications.loadError"),
+            color: "red",
+        });
+    });
+
     // loading starts true, so the first fetch needs no reset; loadAgreements sets it
     // for later fetches
     useEffect(() => {
@@ -61,17 +70,13 @@ export function UserAgreementEditor() {
                     setAllAgreements(allResult.data || []);
                 }
             } catch {
-                notifications.show({
-                    title: t("notifications.error"),
-                    message: t("notifications.loadError"),
-                    color: "red",
-                });
+                showLoadError();
             } finally {
                 setLoading(false);
             }
         }
         fetchAgreements();
-    }, [t, reloadCount]);
+    }, [reloadCount]);
 
     const loadAgreements = useCallback(() => {
         setLoading(true);

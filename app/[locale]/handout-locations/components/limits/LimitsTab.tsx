@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
     Alert,
     Box,
@@ -110,6 +110,15 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
     // Bumped after a save to refetch the visible month
     const [reloadCount, setReloadCount] = useState(0);
 
+    // An effect event, so the fetch doesn't rerun when t changes
+    const showLoadError = useEffectEvent(() => {
+        notifications.show({
+            title: t("loadErrorTitle"),
+            message: t("loadErrorMessage"),
+            color: "red",
+        });
+    });
+
     useEffect(() => {
         const requestId = ++monthRequestId.current;
         async function fetchMonth() {
@@ -131,16 +140,12 @@ export function LimitsTab({ location, onLocationUpdated }: LimitsTabProps) {
                 });
             } else {
                 setMonthData(null);
-                notifications.show({
-                    title: t("loadErrorTitle"),
-                    message: t("loadErrorMessage"),
-                    color: "red",
-                });
+                showLoadError();
             }
             setLoadingMonth(false);
         }
         void fetchMonth();
-    }, [location.id, monthDateKeys, t, reloadCount]);
+    }, [location.id, monthDateKeys, reloadCount]);
 
     const groupedSelection = useMemo(() => {
         const formatter = new Intl.DateTimeFormat(locale === "sv" ? "sv-SE" : "en-GB", {

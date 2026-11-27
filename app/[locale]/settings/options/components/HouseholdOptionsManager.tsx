@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useEffectEvent } from "react";
 import {
     Container,
     Title,
@@ -99,6 +99,15 @@ export function HouseholdOptionsManager() {
     // Bumped by loadAllOptions to refetch
     const [reloadCount, setReloadCount] = useState(0);
 
+    // An effect event, so the fetch doesn't rerun when t changes
+    const showLoadError = useEffectEvent(() => {
+        notifications.show({
+            title: t("notifications.error"),
+            message: t("notifications.loadError"),
+            color: "red",
+        });
+    });
+
     // loading starts true, so the first fetch needs no reset; loadAllOptions sets it
     // for later fetches
     useEffect(() => {
@@ -115,24 +124,16 @@ export function HouseholdOptionsManager() {
                 if (needsResult.success) setNeedsOptions(needsResult.data);
 
                 if (!dietaryResult.success || !petResult.success || !needsResult.success) {
-                    notifications.show({
-                        title: t("notifications.error"),
-                        message: t("notifications.loadError"),
-                        color: "red",
-                    });
+                    showLoadError();
                 }
             } catch {
-                notifications.show({
-                    title: t("notifications.error"),
-                    message: t("notifications.loadError"),
-                    color: "red",
-                });
+                showLoadError();
             } finally {
                 setLoading(false);
             }
         }
         fetchAllOptions();
-    }, [t, reloadCount]);
+    }, [reloadCount]);
 
     const loadAllOptions = useCallback(() => {
         setLoading(true);

@@ -15,7 +15,10 @@ import {
 import type { LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 import { toStockholmDate, formatDateToYMD } from "@/app/utils/date-utils";
 import { isDateAvailable } from "@/app/utils/schedule/location-availability";
-import { getRescheduleTimeSlots } from "@/app/utils/schedule/reschedule-time-slots";
+import {
+    getRescheduleTimeSlots,
+    selectedRescheduleTime,
+} from "@/app/utils/schedule/reschedule-time-slots";
 import { Time } from "@/app/utils/time-provider";
 import {
     getRescheduleErrorMessage,
@@ -109,7 +112,7 @@ export default function RescheduleInline({
 
     const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, true);
     const availableTimes = timeSlots.slots;
-    const selectedTime = pickedTime === undefined ? timeSlots.firstAvailable : pickedTime;
+    const selectedTime = selectedRescheduleTime(timeSlots, pickedTime);
     const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);
 
     const isDateAvailableForPickup = (date: Date): boolean => {

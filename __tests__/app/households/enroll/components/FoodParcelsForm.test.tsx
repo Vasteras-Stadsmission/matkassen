@@ -464,6 +464,31 @@ describe("FoodParcelsForm Business Logic Tests", () => {
         );
     });
 
+    it("stops the capacity spinner when the month already shown is picked again", async () => {
+        (mockGetPickupLocationCapacity as any).mockResolvedValue({
+            hasLimit: false,
+            maxPerDay: null,
+            dateLimits: {},
+            dateCapacities: {},
+        });
+
+        render(
+            <FoodParcelsForm
+                data={createMockFormData({ pickupLocationId: "location-1" })}
+                updateData={mockUpdateData}
+                error={null}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId("navigate-to-october-2026"));
+        await waitFor(() => expect(mockGetPickupLocationCapacity).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(screen.queryByTestId("loader")).toBeNull());
+
+        fireEvent.click(screen.getByTestId("navigate-to-october-2026"));
+        expect(screen.queryByTestId("loader")).toBeNull();
+        expect(mockGetPickupLocationCapacity).toHaveBeenCalledTimes(2);
+    });
+
     /**
      * TEST 2: Time Validation and End Time Calculation
      * Tests that time selections are validated against facility hours

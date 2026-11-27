@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useEffectEvent } from "react";
 import {
     Container,
     Title,
@@ -179,6 +179,15 @@ export function EnrollmentChecklist() {
     // Bumped by loadQuestions to refetch
     const [reloadCount, setReloadCount] = useState(0);
 
+    // An effect event, so the fetch doesn't rerun when t changes
+    const showLoadError = useEffectEvent((error?: { code: string; message: string }) => {
+        notifications.show({
+            title: t("notifications.error"),
+            message: error ? getErrorMessage(error) : t("notifications.loadError"),
+            color: "red",
+        });
+    });
+
     // loading starts true, so the first fetch needs no reset; loadQuestions sets it
     // for later fetches
     useEffect(() => {
@@ -188,24 +197,16 @@ export function EnrollmentChecklist() {
                 if (result.success) {
                     setQuestions(result.data);
                 } else {
-                    notifications.show({
-                        title: t("notifications.error"),
-                        message: getErrorMessage(result.error),
-                        color: "red",
-                    });
+                    showLoadError(result.error);
                 }
             } catch {
-                notifications.show({
-                    title: t("notifications.error"),
-                    message: t("notifications.loadError"),
-                    color: "red",
-                });
+                showLoadError();
             } finally {
                 setLoading(false);
             }
         }
         fetchQuestions();
-    }, [t, getErrorMessage, reloadCount]);
+    }, [reloadCount]);
 
     const loadQuestions = useCallback(() => {
         setLoading(true);

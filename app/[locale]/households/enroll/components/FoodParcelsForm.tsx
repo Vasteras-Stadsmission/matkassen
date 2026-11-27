@@ -168,8 +168,8 @@ export default function FoodParcelsForm({
     const [visibleCalendarMonth, setVisibleCalendarMonth] = useState(
         () => `${Time.now().toDateString().slice(0, 7)}-01`,
     );
+    // The capacity reset below shows the spinner when the month really changes
     const handleVisibleCalendarMonthChange = useCallback((month: string) => {
-        setLoadingCapacityData(true);
         setVisibleCalendarMonth(month);
     }, []);
 

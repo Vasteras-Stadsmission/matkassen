@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getRescheduleTimeSlots } from "@/app/utils/schedule/reschedule-time-slots";
+import {
+    getRescheduleTimeSlots,
+    selectedRescheduleTime,
+} from "@/app/utils/schedule/reschedule-time-slots";
 import type { LocationScheduleInfo } from "@/app/[locale]/schedule/types";
 
 const closed = { isOpen: false, openingTime: null, closingTime: null };
@@ -60,5 +63,28 @@ describe("getRescheduleTimeSlots", () => {
         const result = getRescheduleTimeSlots(wednesday, schedules, 60, true);
         expect(result.slots).toEqual([]);
         expect(result.errorKey).toBe("noTimesAvailable");
+    });
+});
+
+describe("selectedRescheduleTime", () => {
+    const quarterHours = getRescheduleTimeSlots(wednesday, schedules, 15, true);
+
+    it("takes the first available time until the user picks one", () => {
+        expect(selectedRescheduleTime(quarterHours, undefined)).toBe("09:15");
+    });
+
+    it("keeps the user's pick while it is offered", () => {
+        expect(selectedRescheduleTime(quarterHours, "09:45")).toBe("09:45");
+    });
+
+    it("stays empty once the user clears the pick", () => {
+        expect(selectedRescheduleTime(quarterHours, null)).toBeNull();
+    });
+
+    it("drops a pick the slots no longer offer", () => {
+        // 09:45 was picked with 15-minute slots; the location uses 20-minute ones
+        const twentyMinutes = getRescheduleTimeSlots(wednesday, schedules, 20, true);
+        expect(twentyMinutes.slots.map(slot => slot.value)).not.toContain("09:45");
+        expect(selectedRescheduleTime(twentyMinutes, "09:45")).toBe(twentyMinutes.firstAvailable);
     });
 });
