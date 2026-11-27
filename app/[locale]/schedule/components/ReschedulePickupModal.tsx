@@ -114,7 +114,7 @@ export default function ReschedulePickupModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps -- t is not referentially stable, intentionally excluded
     }, [opened, parcelId, parcelLocationId]);
 
-    const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration, true);
+    const timeSlots = getRescheduleTimeSlots(selectedDate, locationSchedules, slotDuration);
     const availableTimes = timeSlots.slots;
     const selectedTime = selectedRescheduleTime(timeSlots, pickedTime);
     const shownError = error ?? (timeSlots.errorKey ? t(`reschedule.${timeSlots.errorKey}`) : null);
